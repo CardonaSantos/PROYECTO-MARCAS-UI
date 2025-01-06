@@ -1,0 +1,28 @@
+/* El efecto de sombra en el logo puede interferir con el estilo de los componentes */
+.logo:hover {
+  /* Puedes ajustar o eliminar el filtro si es necesario */
+}
+
+.logo.react:hover {
+  /* Puedes ajustar o eliminar el filtro si es necesario */
+}
+
+@keyframes logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Elimina la animación si no es esencial para la experiencia del usuario */
+@media (prefers-reduced-motion: no-preference) {
+  a:nth-of-type(2) .logo {
+    /* Puedes ajustar o eliminar esta animación si es necesario */
+  }
+}
+
+.read-the-docs {
+  color: #888;
+}

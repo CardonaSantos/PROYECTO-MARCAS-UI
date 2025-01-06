@@ -1,0 +1,21 @@
+export type ProviderManage = {
+  id: number;
+  nombre: string;
+  correo: string;
+  telefono: string;
+  direccion: string;
+  razonSocial: string | null;
+  rfc: string | null;
+  nombreContacto: string | null;
+  telefonoContacto: string | null;
+  emailContacto: string | null;
+  pais: string | null;
+  ciudad: string | null;
+  codigoPostal: string | null;
+  latitud: number | null;
+  longitud: number | null;
+  activo: boolean;
+  notas: string | null;
+  creadoEn: string;
+  actualizadoEn: string;
+};

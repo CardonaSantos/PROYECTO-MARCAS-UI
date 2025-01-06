@@ -1,0 +1,42 @@
+import React from 'react';
+import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer';
+import { formatearFecha } from '../utils/dateUtils';
+
+interface VentaProps {
+  venta: VentaTypePDF | undefined;
+  empresa: Empresa | undefined;
+}
+
+export interface VentaTypePDF {
+  id: number;
+  timestamp: string;
+  monto: number;
+  montoConDescuento: number;
+  descuento: number;
+  metodoPago: "CONTADO" | "TARJETA" | "TRANSFERENCIA_BANCO";
+  cliente: {
+    id: number;
+    nombre: string;
+    telefono: string;
+    correo: string;
+    direccion: string;
+  };
+  vendedor: {
+    id: number;
+    nombre: string;
+    correo: string;
+  };
+  productos: {
+    cantidad: number;
+    precio: number;
+    producto: {
+      id: number;
+      nombre: string;
+      descripcion: string;
+    };
+  }[];
+}
+
+
+export default VentaPDF;
+
