@@ -1,22 +1,30 @@
 import {
-  Briefcase,
-  ChartNoAxesCombinedIcon,
+  BarChart3,
+  Boxes,
+  Building2,
+  Calendar,
+  CalendarPlus,
   CheckSquare,
   ClipboardList,
-  FileText,
-  Grid,
+  Clock,
+  CreditCard,
+  FileClock,
+  FileSpreadsheet,
+  FolderOpen,
   Home,
-  Info,
-  LockKeyholeOpen,
+  KeyRound,
   MapPin,
-  PackageOpen,
-  PlusSquare,
-  Sheet,
+  MapPinned,
+  PackagePlus,
+  PieChart,
   ShoppingBag,
   Star,
   Tags,
-  UserCheck,
+  Truck,
+  UserCog,
   UserPlus,
+  UserPlus2,
+  Wallet,
 } from "lucide-react";
 
 import {
@@ -29,7 +37,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { ShoppingCart, Package, Users, Box } from "lucide-react";
+import { ShoppingCart, Users, Box } from "lucide-react";
 import { useStore } from "@/Context/ContextSucursal";
 import { Link } from "react-router-dom";
 import {
@@ -40,44 +48,50 @@ import {
 } from "../ui/tooltip";
 
 const menuItems = [
-  { icon: Home, label: "Inicio", href: "/" },
-  { icon: ShoppingBag, label: "Realizar Venta", href: "/hacer-ventas" },
-  { icon: Users, label: "Gestión de Clientes", href: "/clientes" },
-  { icon: UserPlus, label: "Nuevo Cliente", href: "/crear-cliente" },
-  { icon: ShoppingCart, label: "Historial Ventas", href: "/ventas" },
-  { icon: FileText, label: "Prospectos Registrados", href: "/historial-citas" },
+  { icon: Home, label: "Página Principal", href: "/" },
+  { icon: ShoppingBag, label: "Nueva Venta", href: "/hacer-ventas" },
+  { icon: Users, label: "Directorio de Clientes", href: "/clientes" },
+  { icon: UserPlus, label: "Registrar Cliente", href: "/crear-cliente" },
+  { icon: ClipboardList, label: "Historial de Ventas", href: "/ventas" },
+  { icon: CreditCard, label: "Gestión de Créditos", href: "/creditos" },
   {
-    icon: ClipboardList,
-    label: "Visitas Realizadas",
-    href: "/historial-visitas",
+    icon: Calendar,
+    label: "Registro de Prospectos",
+    href: "/historial-prospectos",
   },
-  { icon: UserCheck, label: "Gestión de Usuarios", href: "/usuarios" },
-  { icon: Briefcase, label: "Gestión de Empleados", href: "/empleados" },
+  { icon: MapPin, label: "Registro de Visitas", href: "/historial-visitas" },
+  { icon: UserCog, label: "Administración de Usuarios", href: "/usuarios" },
+  { icon: MapPinned, label: "Ubicación de Empleados", href: "/empleados" },
   {
-    icon: ClipboardList,
-    label: "Check de Empleados",
+    icon: FileClock,
+    label: "Control de Asistencia",
     href: "/historial-empleados-check",
   },
   {
-    icon: CheckSquare,
-    label: "Registro de Entrada/Salida",
+    icon: Clock,
+    label: "Registro de Jornada",
     href: "/registrar-entrada-salida",
   },
-  { icon: PackageOpen, label: "Lista de Productos", href: "/ver-productos" },
-  { icon: PlusSquare, label: "Agregar Producto", href: "/crear-productos" },
-  { icon: Grid, label: "Gestión de Stock", href: "/asignar-stock" },
-  { icon: Tags, label: "Gestión de Categorías", href: "/crear-categoria" },
-  { icon: Package, label: "Gestión de Proveedores", href: "/crear-proveedor" },
-  { icon: Box, label: "Entregas Registradas", href: "/registro-entregas" },
-  { icon: MapPin, label: "Registrar Visita", href: "/visita" },
-  { icon: Star, label: "Registrar Prospecto", href: "/prospecto" },
-  { icon: ChartNoAxesCombinedIcon, label: "Gráficas", href: "/analisis" },
+  { icon: Boxes, label: "Catálogo de Productos", href: "/ver-productos" },
+  { icon: PackagePlus, label: "Nuevo Producto", href: "/crear-productos" },
 
-  { icon: Sheet, label: "Reportes", href: "/reportes" },
+  {
+    icon: FolderOpen,
+    label: "Seguimiento de Cancelaciones",
+    href: "/seguimiento-de-cancelaciones",
+  },
 
-  { icon: LockKeyholeOpen, label: "Recuperar Contraseña", href: "/recovery" },
-
-  { icon: Info, label: "Info Empresa", href: "/empresa-info" },
+  { icon: BarChart3, label: "Control de Inventario", href: "/asignar-stock" },
+  { icon: Tags, label: "Categorías de Productos", href: "/crear-categoria" },
+  { icon: Truck, label: "Directorio de Proveedores", href: "/crear-proveedor" },
+  { icon: Box, label: "Registro de Entregas", href: "/registro-entregas" },
+  { icon: CalendarPlus, label: "Programar Visita", href: "/visita" },
+  { icon: UserPlus2, label: "Nuevo Prospecto", href: "/prospecto" },
+  { icon: PieChart, label: "Estadísticas y Gráficos", href: "/analisis" },
+  { icon: FileSpreadsheet, label: "Informes y Reportes", href: "/reportes" },
+  { icon: Wallet, label: "Balance de Cuentas", href: "/saldos" },
+  { icon: KeyRound, label: "Restablecer Contraseña", href: "/recovery" },
+  { icon: Building2, label: "Información Corporativa", href: "/empresa-info" },
 ];
 
 const menuVendedor = [

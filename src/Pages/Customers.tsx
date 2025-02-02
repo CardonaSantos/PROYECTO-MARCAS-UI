@@ -404,11 +404,12 @@ export default function ClientesList() {
                 <SelectValue placeholder="Volumen de compra" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="bajo">Bajo (1 - 50 unidades)</SelectItem>
-                <SelectItem value="medio">Medio (51 - 200 unidades)</SelectItem>
-                <SelectItem value="alto">Alto (201 - 500 unidades)</SelectItem>
+                <SelectItem value="bajo">Bajo (1 - 30 unidades)</SelectItem>
+
+                <SelectItem value="medio">Medio (31 - 90 unidades)</SelectItem>
+                <SelectItem value="alto">Alto (91 - 150 unidades)</SelectItem>
                 <SelectItem value="muyAlto">
-                  Muy Alto (más de 500 unidades)
+                  Muy Alto (más de 150 unidades)
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -427,7 +428,7 @@ export default function ClientesList() {
               <SelectContent>
                 <SelectItem value="menos5000">Menos de Q5,000</SelectItem>
                 <SelectItem value="5000-10000">Q5,000 - Q10,000</SelectItem>
-                <SelectItem value="10001-20000">Q10,001 - Q20,000</SelectItem>
+                <SelectItem value="10001-20000">Q10,000 - Q20,000</SelectItem>
                 <SelectItem value="mas20000">Más de Q20,000</SelectItem>
               </SelectContent>
             </Select>

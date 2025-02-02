@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,7 +32,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertCircle,
+  AlertTriangle,
   Building,
+  CheckCircle,
   Coins,
   Mail,
   MapPin,
@@ -294,8 +297,8 @@ export default function ProspectoFormulario() {
 
   console.log(formData);
 
-  const handleFinishProspect = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleFinishProspect = async () => {
+    // e.preventDefault();
 
     if (
       !formData.tipoCliente ||
@@ -408,40 +411,30 @@ export default function ProspectoFormulario() {
     }
   };
 
+  const [isSubmittingCancel, setIsSubmittingCancel] = useState(false);
   const [openCancelProspecto, setOpenCancelProspecto] = useState(false);
-  const [isSubmittingCancel, setIsSubmittingCancel] = useState(false); // Para evitar múltiples envíos
+  const [comentariosCancelProspecto, setComentariosCancelProspecto] =
+    useState("");
 
-  const handleCancelProspect = async () => {
-    if (isSubmittingCancel) return; // Truncar si ya está en proceso
+  const handleCancelProspect = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isSubmittingCancel) return;
 
     if (!prospectoAbierto?.id) {
       toast.warning("No se encontró el prospecto a cancelar.");
       return;
     }
 
-    setIsSubmittingCancel(true); // Marcar como enviando
-
+    setIsSubmittingCancel(true);
     try {
       console.log("Cancelando prospecto...");
       const response = await axios.patch(
         `${API_URL}/prospecto/cancelar-prospecto/${prospectoAbierto?.id}`,
         {
-          nombreCompleto: formData.nombreCompleto,
-          empresaTienda: formData.empresaTienda,
-          telefono: formData.telefono,
-          correo: formData.correo,
-          tipoCliente: formData.tipoCliente,
-          categoriasInteres: formData.categoriasInteres,
-          volumenCompra: formData.volumenCompra,
-          presupuestoMensual: formData.presupuestoMensual,
-          preferenciaContacto: formData.preferenciaContacto,
-          comentarios: formData.comentarios,
+          ...formData,
+          comentarios: comentariosCancelProspecto,
           fin: new Date().toISOString(),
-          estado: "CERRADO", // Cambiar estado a "CERRADO" para cancelar
-          departamentoId: formData.departamentoId,
-          municipioId: formData.municipioId,
-          latitud: formData.latitud,
-          longitud: formData.longitud,
+          estado: "CERRADO",
         }
       );
 
@@ -453,8 +446,8 @@ export default function ProspectoFormulario() {
       console.error("Error al cancelar el prospecto:", error);
       toast.error("Error al cancelar el prospecto.");
     } finally {
-      setIsSubmittingCancel(false); // Restablecer el estado
-      setOpenCancelProspecto(false); // Cerrar el dialog
+      setIsSubmittingCancel(false);
+      setOpenCancelProspecto(false);
     }
   };
 
@@ -529,6 +522,8 @@ export default function ProspectoFormulario() {
   };
   const [open, setOpen] = useState(false); // Estado para controlar el diálogo
   const openDialog = () => setOpen(true); // Abrir el diálogo
+
+  const [openFinishProspecto, setOpenFinishProspecto] = useState(false);
   // const []
   return (
     <div className="container mx-auto px-4 py-8">
@@ -541,18 +536,17 @@ export default function ProspectoFormulario() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleFinishProspect} className="space-y-8">
-              {/* Información General */}
               <fieldset className="space-y-6">
-                <legend className="text-xl font-semibold">
+                <legend className="text-xl font-semibold text-primary">
                   Información General
                 </legend>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label
                       htmlFor="nombreCompleto"
-                      className="flex items-center space-x-2"
+                      className="flex items-center space-x-2 text-sm font-medium"
                     >
-                      <User className="w-4 h-4" />
+                      <User className="w-4 h-4 text-muted-foreground" />
                       <span>Nombres*</span>
                     </Label>
                     <Input
@@ -562,9 +556,10 @@ export default function ProspectoFormulario() {
                       onChange={handleInputChange}
                       aria-required="true"
                       aria-invalid={errors.nombreCompleto ? "true" : "false"}
+                      className="w-full"
                     />
                     {errors.nombreCompleto && (
-                      <p className="text-red-500 text-sm" role="alert">
+                      <p className="text-destructive text-sm" role="alert">
                         {errors.nombreCompleto}
                       </p>
                     )}
@@ -573,9 +568,9 @@ export default function ProspectoFormulario() {
                   <div className="space-y-2">
                     <Label
                       htmlFor="apellido"
-                      className="flex items-center space-x-2"
+                      className="flex items-center space-x-2 text-sm font-medium"
                     >
-                      <User className="w-4 h-4" />
+                      <User className="w-4 h-4 text-muted-foreground" />
                       <span>Apellidos*</span>
                     </Label>
                     <Input
@@ -585,9 +580,10 @@ export default function ProspectoFormulario() {
                       onChange={handleInputChange}
                       aria-required="true"
                       aria-invalid={errors.apellido ? "true" : "false"}
+                      className="w-full"
                     />
                     {errors.apellido && (
-                      <p className="text-red-500 text-sm" role="alert">
+                      <p className="text-destructive text-sm" role="alert">
                         {errors.apellido}
                       </p>
                     )}
@@ -596,9 +592,9 @@ export default function ProspectoFormulario() {
                   <div className="space-y-2">
                     <Label
                       htmlFor="empresaTienda"
-                      className="flex items-center space-x-2"
+                      className="flex items-center space-x-2 text-sm font-medium"
                     >
-                      <Building className="w-4 h-4" />
+                      <Building className="w-4 h-4 text-muted-foreground" />
                       <span>Empresa/Tienda (opcional)</span>
                     </Label>
                     <Input
@@ -606,14 +602,16 @@ export default function ProspectoFormulario() {
                       name="empresaTienda"
                       value={formData.empresaTienda}
                       onChange={handleInputChange}
+                      className="w-full"
                     />
                   </div>
+
                   <div className="space-y-2">
                     <Label
                       htmlFor="telefono"
-                      className="flex items-center space-x-2"
+                      className="flex items-center space-x-2 text-sm font-medium"
                     >
-                      <Phone className="w-4 h-4" />
+                      <Phone className="w-4 h-4 text-muted-foreground" />
                       <span>Teléfono*</span>
                     </Label>
                     <Input
@@ -623,19 +621,21 @@ export default function ProspectoFormulario() {
                       onChange={handleInputChange}
                       aria-required="true"
                       aria-invalid={errors.telefono ? "true" : "false"}
+                      className="w-full"
                     />
                     {errors.telefono && (
-                      <p className="text-red-500 text-sm" role="alert">
+                      <p className="text-destructive text-sm" role="alert">
                         {errors.telefono}
                       </p>
                     )}
                   </div>
+
                   <div className="space-y-2">
                     <Label
                       htmlFor="correo"
-                      className="flex items-center space-x-2"
+                      className="flex items-center space-x-2 text-sm font-medium"
                     >
-                      <Mail className="w-4 h-4" />
+                      <Mail className="w-4 h-4 text-muted-foreground" />
                       <span>Correo</span>
                     </Label>
                     <Input
@@ -645,19 +645,21 @@ export default function ProspectoFormulario() {
                       value={formData.correo}
                       onChange={handleInputChange}
                       aria-invalid={errors.correo ? "true" : "false"}
+                      className="w-full"
                     />
                     {errors.correo && (
-                      <p className="text-red-500 text-sm" role="alert">
+                      <p className="text-destructive text-sm" role="alert">
                         {errors.correo}
                       </p>
                     )}
                   </div>
+
                   <div className="md:col-span-2 space-y-2">
                     <Label
                       htmlFor="direccion"
-                      className="flex items-center space-x-2"
+                      className="flex items-center space-x-2 text-sm font-medium"
                     >
-                      <MapPin className="w-4 h-4" />
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
                       <span>Dirección</span>
                     </Label>
                     <Input
@@ -665,36 +667,43 @@ export default function ProspectoFormulario() {
                       name="direccion"
                       value={formData.direccion}
                       onChange={handleInputChange}
+                      className="w-full"
                     />
                   </div>
+
                   <div className="space-y-2">
                     <Label
                       htmlFor="municipio"
-                      className="flex items-center space-x-2"
+                      className="flex items-center space-x-2 text-sm font-medium"
                     >
-                      <MapPin className="w-4 h-4" />
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
                       <span>Municipio/Pueblo*</span>
                     </Label>
                     <Input
                       id="municipio"
                       name="municipio"
                       value={formData.municipio}
+                      onChange={handleInputChange}
                       aria-required="true"
+                      className="w-full"
                     />
                   </div>
+
                   <div className="space-y-2">
                     <Label
                       htmlFor="departamento"
-                      className="flex items-center space-x-2"
+                      className="flex items-center space-x-2 text-sm font-medium"
                     >
-                      <MapPin className="w-4 h-4" />
+                      <MapPin className="w-4 h-4 text-muted-foreground" />
                       <span>Departamento*</span>
                     </Label>
                     <Input
                       id="departamento"
                       name="departamento"
                       value={formData.departamento}
+                      onChange={handleInputChange}
                       aria-required="true"
+                      className="w-full"
                     />
                   </div>
                 </div>
@@ -702,7 +711,7 @@ export default function ProspectoFormulario() {
 
               {/* Tipo de Cliente */}
               <fieldset className="space-y-4">
-                <legend className="text-xl font-semibold flex items-center space-x-2">
+                <legend className="text-xl font-semibold text-primary flex items-center space-x-2">
                   <UserCircle className="w-5 h-5" />
                   <span>Tipo de Cliente*</span>
                 </legend>
@@ -735,7 +744,7 @@ export default function ProspectoFormulario() {
                   </SelectContent>
                 </Select>
                 {errors.tipoCliente && (
-                  <p className="text-red-500 text-sm" role="alert">
+                  <p className="text-destructive text-sm" role="alert">
                     {errors.tipoCliente}
                   </p>
                 )}
@@ -779,7 +788,7 @@ export default function ProspectoFormulario() {
 
               {/* Volumen de Compra Estimado Mensual */}
               <fieldset className="space-y-4">
-                <legend className="text-xl font-semibold flex items-center space-x-2">
+                <legend className="text-xl font-semibold text-primary flex items-center space-x-2">
                   <ShoppingBag className="w-5 h-5" />
                   <span>Volumen de Compra Estimado Mensual</span>
                 </legend>
@@ -808,7 +817,7 @@ export default function ProspectoFormulario() {
 
               {/* Presupuesto Mensual Aproximado */}
               <fieldset className="space-y-4">
-                <legend className="text-xl font-semibold flex items-center space-x-2">
+                <legend className="text-xl font-semibold text-primary flex items-center space-x-2">
                   <Coins className="w-5 h-5" />
                   <span>Presupuesto Mensual Aproximado</span>
                 </legend>
@@ -833,7 +842,7 @@ export default function ProspectoFormulario() {
 
               {/* Preferencia de Comunicación */}
               <fieldset className="space-y-4">
-                <legend className="text-xl font-semibold flex items-center space-x-2">
+                <legend className="text-xl font-semibold text-primary flex items-center space-x-2">
                   <MessageSquare className="w-5 h-5" />
                   <span>Preferencia de Comunicación</span>
                 </legend>
@@ -856,7 +865,7 @@ export default function ProspectoFormulario() {
 
               {/* Comentarios o Necesidades Específicas */}
               <fieldset className="space-y-4">
-                <legend className="text-xl font-semibold flex items-center space-x-2">
+                <legend className="text-xl font-semibold text-primary flex items-center space-x-2">
                   <MessageSquare className="w-5 h-5" />
                   <span>Comentarios o Notas</span>
                 </legend>
@@ -865,7 +874,7 @@ export default function ProspectoFormulario() {
                   value={formData.comentarios}
                   onChange={handleInputChange}
                   placeholder="Ingrese cualquier comentario adicional, nota o requisitos especiales"
-                  className="min-h-[100px]"
+                  className="min-h-[100px] w-full"
                 />
               </fieldset>
 
@@ -884,62 +893,24 @@ export default function ProspectoFormulario() {
                 >
                   Obtener ubicación actual
                 </Button>
+
                 <Button
-                  type="submit"
+                  type="button"
                   disabled={isSubmitting}
                   className="w-full sm:w-auto"
+                  onClick={() => setOpenFinishProspecto(true)}
                 >
                   {isSubmitting ? "Enviando..." : "Finalizar Prospecto"}
                 </Button>
+
                 <Button
                   type="button"
                   variant="destructive"
                   onClick={() => setOpenCancelProspecto(true)}
+                  className="w-full sm:w-auto"
                 >
                   Cancelar Prospecto
                 </Button>
-
-                <Dialog
-                  open={openCancelProspecto}
-                  onOpenChange={setOpenCancelProspecto}
-                >
-                  <DialogContent>
-                    <DialogHeader>
-                      <h2 className="text-lg font-semibold">
-                        Cancelar Prospecto
-                      </h2>
-                      <p className="text-sm text-muted-foreground">
-                        ¿Estás seguro de que deseas cancelar este prospecto?
-                        Esta acción no puede deshacerse.
-                      </p>
-                    </DialogHeader>
-
-                    <DialogFooter>
-                      <form
-                        onSubmit={handleCancelProspect}
-                        className="flex gap-2"
-                      >
-                        <Button
-                          // type="button"
-                          type="submit"
-                          variant="destructive"
-                          disabled={isSubmittingCancel}
-                        >
-                          {isSubmittingCancel
-                            ? "Cancelando..."
-                            : "Si, cancelar"}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setOpenCancelProspecto(false)}
-                        >
-                          Cerrar
-                        </Button>
-                      </form>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
               </div>
             </form>
           </CardContent>
@@ -1116,42 +1087,193 @@ export default function ProspectoFormulario() {
               </CardFooter>
             </form>
           </Card>
-
-          {/* Dialogo de confirmación */}
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle className="text-center">
-                  Confirmar Registro de Prospecto
-                </DialogTitle>
-              </DialogHeader>
-              <p className="text-center">
-                ¿Está seguro de que desea iniciar este prospecto con la
-                información ingresada?
-              </p>
-              <DialogFooter className="flex gap-2 justify-center items-center">
-                <Button
-                  className="w-full"
-                  variant="destructive"
-                  onClick={() => setOpen(false)}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  className="w-full"
-                  onClick={async () => {
-                    await postProspecto();
-                    setOpen(false);
-                  }}
-                  disabled={isSubmitting}
-                >
-                  Confirmar
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </div>
       )}
+
+      {/* Dialogo de confirmación al inciar prospecto */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-center">
+              Confirmar Registro de Prospecto
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-center">
+            ¿Está seguro de que desea iniciar este prospecto con la información
+            ingresada?
+          </p>
+          <DialogFooter className="flex gap-2 justify-center items-center">
+            <Button
+              className="w-full"
+              variant="destructive"
+              onClick={() => setOpen(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="w-full"
+              onClick={async () => {
+                await postProspecto();
+                setOpen(false);
+              }}
+              disabled={isSubmitting}
+            >
+              Confirmar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG PARA LA CONFIRMACION DE FINALIZACION DE PROSPECTO EXITOSO */}
+      {/* Dialog de confirmación de finalización */}
+      <Dialog open={openFinishProspecto} onOpenChange={setOpenFinishProspecto}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-center text-xl font-semibold text-primary">
+              <CheckCircle className="w-6 h-6 mr-2 text-green-500" />
+              Confirmar Finalización
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-4 text-center">
+            <AlertCircle className="w-12 h-12 mx-auto text-yellow-500 mb-4" />
+            <p className="text-sm text-gray-600">
+              ¿Estás seguro de que deseas finalizar este prospecto?
+            </p>
+            <p className="text-xs text-gray-500 mt-2">
+              Esta acción no se puede deshacer.
+            </p>
+          </div>
+          <DialogFooter className="mt-6 flex flex-col sm:flex-row gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setOpenFinishProspecto(false)}
+              className="w-full sm:w-auto"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                handleFinishProspect();
+                setOpenFinishProspecto(false);
+              }}
+              disabled={isSubmitting}
+              className="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
+            >
+              {isSubmitting ? (
+                <span className="flex items-center justify-center">
+                  <svg
+                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Enviando...
+                </span>
+              ) : (
+                <>
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  Sí, Finalizar
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG PARA CANCELAR EL PROSPECTO */}
+      <Dialog open={openCancelProspecto} onOpenChange={setOpenCancelProspecto}>
+        <DialogContent className="">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-center text-xl font-semibold text-red-600">
+              <AlertTriangle className="w-6 h-6 mr-2" />
+              Confirmar Cancelación de Prospecto
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-4 text-center">
+            <p className="text-sm ">
+              ¿Está seguro de que desea cancelar este prospecto? Esta acción no
+              se puede deshacer.
+            </p>
+            <div className="mt-4">
+              <label
+                htmlFor="comentariosCancelacion"
+                className="block text-sm font-medium  mb-2"
+              >
+                Motivo de la cancelación:
+              </label>
+              <Input
+                id="comentariosCancelacion"
+                type="text"
+                placeholder="Ingrese el motivo de la cancelación"
+                value={comentariosCancelProspecto}
+                onChange={(e) => setComentariosCancelProspecto(e.target.value)}
+                className="w-full px-3 py-2   rounded-md "
+              />
+            </div>
+          </div>
+          <DialogFooter className="mt-6 flex flex-col sm:flex-row gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setOpenCancelProspecto(false)}
+              className="w-full sm:w-auto"
+            >
+              Volver
+            </Button>
+            <Button
+              type="submit"
+              variant="destructive"
+              onClick={handleCancelProspect}
+              disabled={
+                isSubmittingCancel || !comentariosCancelProspecto.trim()
+              }
+              className="w-full sm:w-auto"
+            >
+              {isSubmittingCancel ? (
+                <span className="flex items-center justify-center">
+                  <svg
+                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Cancelando...
+                </span>
+              ) : (
+                "Confirmar Cancelación"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

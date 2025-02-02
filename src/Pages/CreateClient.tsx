@@ -476,7 +476,7 @@ export default function CreateClient() {
               <SelectContent>
                 <SelectItem value="menos5000">Menos de Q5,000</SelectItem>
                 <SelectItem value="5000-10000">Q5,000 - Q10,000</SelectItem>
-                <SelectItem value="10001-20000">Q10,001 - Q20,000</SelectItem>
+                <SelectItem value="10001-20000">Q10,000 - Q20,000</SelectItem>
                 <SelectItem value="mas20000">Más de Q20,000</SelectItem>
               </SelectContent>
             </Select>

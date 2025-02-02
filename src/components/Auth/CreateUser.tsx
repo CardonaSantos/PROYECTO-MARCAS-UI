@@ -36,6 +36,7 @@ export default function CreateUser() {
     correo: "",
     contrasena: "",
     rol: "",
+    empresaId: 1,
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

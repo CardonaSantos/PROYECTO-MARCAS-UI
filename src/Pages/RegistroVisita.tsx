@@ -3,6 +3,16 @@ import { jwtDecode } from "jwt-decode";
 import axios from "axios";
 import { toast } from "sonner";
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+
+import {
+  AlertTriangle,
   Calendar,
   CheckCircle,
   ClipboardList,
@@ -38,6 +48,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/es";
 import utc from "dayjs/plugin/utc";
 import localizedFormat from "dayjs/plugin/localizedFormat";
+import { Input } from "@/components/ui/input";
 
 dayjs.extend(utc);
 dayjs.extend(localizedFormat);
@@ -215,22 +226,29 @@ export default function RegistroVisita() {
     }
   };
 
+  const [openCloseVisita, setOpenCloseVisita] = useState(false);
+  const [observacionesClose, setObservacionesClose] = useState("");
+  const [truncarClose, setTruncarClose] = useState(false);
+
   const cancelarVisita = async () => {
     if (visitaActual) {
       try {
+        setTruncarClose(true);
         await axios.patch(
           `${API_URL}/date/cancel/visit-regist/${visitaActual.id}`,
           {
-            fin: new Date(),
-            estadoVisita: EstadoVisita.CANCELADA,
+            estadoVisita: "CANCELADA",
+            motivoCancelacion: observacionesClose,
           }
         );
-
         toast.success("Registro de visita cancelado");
         setTimeout(() => window.location.reload(), 1000);
       } catch (error) {
         console.error("Error al cancelar la visita:", error);
         toast.error("Error al cancelar la visita");
+      } finally {
+        setTruncarClose(false);
+        setOpenCloseVisita(false);
       }
     }
   };
@@ -413,9 +431,12 @@ export default function RegistroVisita() {
               <CheckCircle className="mr-2 h-4 w-4" />
               Finalizar Visita
             </Button>
-            <Button variant="destructive" onClick={cancelarVisita}>
-              <XCircle className="mr-2 h-4 w-4" />
-              Cancelar Visita
+            <Button
+              variant="destructive"
+              onClick={() => setOpenCloseVisita(true)}
+              disabled={truncarClose}
+            >
+              <XCircle className="mr-2 h-4 w-4" /> Cancelar Visita
             </Button>
           </>
         ) : (
@@ -433,6 +454,44 @@ export default function RegistroVisita() {
           </Button>
         )}
       </CardFooter>
+      <Dialog open={openCloseVisita} onOpenChange={setOpenCloseVisita}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              <AlertTriangle className="inline-block mr-2 text-red-500" />
+              Confirmar Cancelación
+            </DialogTitle>
+            <DialogDescription>
+              Por favor, proporciona una razón para cancelar la visita.
+            </DialogDescription>
+          </DialogHeader>
+
+          <Input
+            type="text"
+            placeholder="Motivo de cancelación"
+            value={observacionesClose}
+            onChange={(e) => setObservacionesClose(e.target.value)}
+            disabled={truncarClose}
+          />
+
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => setOpenCloseVisita(false)}
+              disabled={truncarClose}
+            >
+              Cerrar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={cancelarVisita}
+              disabled={truncarClose || !observacionesClose.trim()}
+            >
+              {truncarClose ? "Cancelando..." : "Confirmar Cancelación"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

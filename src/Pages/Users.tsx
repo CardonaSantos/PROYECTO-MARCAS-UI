@@ -1,7 +1,19 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Edit, Trash2, UserCog } from "lucide-react";
+import {
+  Edit,
+  Eye,
+  EyeOff,
+  Key,
+  Lock,
+  Mail,
+  Save,
+  Trash2,
+  User,
+  UserCog,
+  X,
+} from "lucide-react";
 import {
   Table,
   TableBody,
@@ -29,18 +41,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { useStore } from "@/Context/ContextSucursal";
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 function Users() {
+  const userId = useStore((state) => state.userId) ?? 0;
   const [users, setUsers] = useState<UsersSystem[]>([]);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState<UsersSystem | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [userToEdit, setUserToEdit] = useState<UsersSystem | null>(null);
   const [isUserActive, setIsUserActive] = useState<boolean | null>(null);
-
-  const [contrasenaActual, setContrasenaActual] = useState<string>("");
 
   const [editedUser, setEditedUser] = useState({
     nombre: "",
@@ -108,39 +120,51 @@ function Users() {
         nombre: editedUser.nombre,
         correo: editedUser.correo,
         rol: editedUser.rol,
-        // Solo envía la contraseña si existe una nueva
-        contrasena: editedUser.contrasenaActualizar || undefined,
-        contrasenaActual: contrasenaActual || undefined,
         activo: isUserActive,
+        userId: userId, // ID del admin que edita
       });
-      console.log("La data enviada es:");
-
-      console.log({
-        nombre: editedUser.nombre,
-        correo: editedUser.correo,
-        contrasena: editedUser.contrasenaActualizar || "", // Nueva contraseña
-        contrasenaActual: contrasenaActual, // Contraseña actual
-        rol: editedUser.rol,
-      });
-      console.log("El id del usuari  a editar es:", userToEdit?.id);
 
       if (response.status === 200) {
         setShowEditModal(false);
-        getUsers(); // Refrescar la lista de usuarios}
-        setContrasenaActual("");
-        toast.success("Usuario actualizado, cierre sesion e inicie de nuevo");
+        getUsers(); // Refrescar la lista de usuarios
+        toast.success("Usuario actualizado correctamente.");
       }
     } catch (error) {
-      console.log(error);
-      toast.error("Error al actualizar usuario. Verifique las credenciales");
+      console.error("Error al actualizar usuario:", error);
+      toast.error("Error al actualizar usuario.");
     }
   };
 
-  console.log("El usuario a editar es: ", editedUser);
-  console.log(
-    "La contraseña actual del usuario a editar es: ",
-    contrasenaActual
-  );
+  const [showPassword, setShowPassword] = useState({
+    admin: false,
+    user: false,
+  });
+
+  const [openChangePass, setOpenChangePass] = useState(false);
+  const [contraseñaAdmin, setContraseñaAdmin] = useState("");
+  const [userChangePasswordID, setUserChangePasswordID] = useState(0);
+  const [newUserPass, setNewUserPass] = useState("");
+
+  const handleChangePasswordUser = async () => {
+    try {
+      const response = await axios.patch(
+        `${API_URL}/users/change-password/${userChangePasswordID}`,
+        {
+          adminId: userId, // ID del admin
+          adminPassword: contraseñaAdmin, // Contraseña del admin
+          newPassword: newUserPass.trim(), // Nueva contraseña del usuario
+        }
+      );
+
+      if (response.status === 200 || response.status === 201) {
+        toast.success("Contraseña cambiada correctamente.");
+        getUsers();
+      }
+    } catch (error) {
+      console.error("Error al cambiar contraseña:", error);
+      toast.error("Error al cambiar la contraseña.");
+    }
+  };
 
   return (
     <div className="container mx-auto p-6">
@@ -159,7 +183,9 @@ function Users() {
                 <TableHead>Correo electrónico</TableHead>
                 <TableHead>Rol</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead>Acciones</TableHead>
+                <TableHead>Editar</TableHead>
+                <TableHead>Contraseñas</TableHead>
+                <TableHead>Eliminar</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -178,6 +204,23 @@ function Users() {
                       <Edit className="h-4 w-4 mr-1" />
                       Editar
                     </Button>
+                  </TableCell>
+
+                  <TableCell>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setOpenChangePass(true);
+                        setUserChangePasswordID(user.id);
+                      }}
+                    >
+                      <Key className="h-4 w-4 mr-1" />
+                      Contraseña
+                    </Button>
+                  </TableCell>
+
+                  <TableCell>
                     <Button
                       variant="destructive"
                       size="sm"
@@ -219,39 +262,50 @@ function Users() {
       </Dialog>
 
       <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Editar Usuario</DialogTitle>
+            <DialogTitle className="text-center text-xl font-semibold">
+              <UserCog className="inline-block mr-2 h-5 w-5" />
+              Editar Usuario
+            </DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="name" className="text-right">
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name" className="text-sm font-medium">
                 Nombre
               </Label>
-              <Input
-                id="name"
-                value={editedUser.nombre}
-                onChange={(e) =>
-                  setEditedUser({ ...editedUser, nombre: e.target.value })
-                }
-                className="col-span-3"
-              />
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                <Input
+                  id="name"
+                  value={editedUser.nombre}
+                  onChange={(e) =>
+                    setEditedUser({ ...editedUser, nombre: e.target.value })
+                  }
+                  className="pl-10"
+                  placeholder="Ingrese el nombre"
+                />
+              </div>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="email" className="text-right">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-sm font-medium">
                 Correo
               </Label>
-              <Input
-                id="email"
-                value={editedUser.correo}
-                onChange={(e) =>
-                  setEditedUser({ ...editedUser, correo: e.target.value })
-                }
-                className="col-span-3"
-              />
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                <Input
+                  id="email"
+                  value={editedUser.correo}
+                  onChange={(e) =>
+                    setEditedUser({ ...editedUser, correo: e.target.value })
+                  }
+                  className="pl-10"
+                  placeholder="Ingrese el correo"
+                />
+              </div>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="role" className="text-right">
+            <div className="space-y-2">
+              <Label htmlFor="role" className="text-sm font-medium">
                 Rol
               </Label>
               <Select
@@ -260,7 +314,7 @@ function Users() {
                 }
                 defaultValue={editedUser.rol}
               >
-                <SelectTrigger className="col-span-3">
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="Seleccionar Rol" />
                 </SelectTrigger>
                 <SelectContent>
@@ -269,58 +323,115 @@ function Users() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="status" className="text-right">
-                Estado
-              </Label>
-              <Select
-                onValueChange={(value) => setIsUserActive(value === "true")}
-                defaultValue={isUserActive ? "true" : "false"}
-              >
-                <SelectTrigger className="col-span-3">
-                  <SelectValue placeholder="Seleccionar Estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="true">Activo</SelectItem>
-                  <SelectItem value="false">Inactivo</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="currentPassword" className="text-right">
-                Contraseña Actual
-              </Label>
-              <Input
-                id="currentPassword"
-                type="password"
-                value={contrasenaActual}
-                onChange={(e) => setContrasenaActual(e.target.value)}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="newPassword" className="text-right">
-                Nueva Contraseña
-              </Label>
-              <Input
-                id="newPassword"
-                type="password"
-                value={editedUser.contrasenaActualizar}
-                onChange={(e) =>
-                  setEditedUser({
-                    ...editedUser,
-                    contrasenaActualizar: e.target.value,
-                  })
-                }
-                className="col-span-3"
-              />
-            </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditModal(false)}>
+          <DialogFooter className="sm:justify-between">
+            <Button
+              variant="outline"
+              onClick={() => setShowEditModal(false)}
+              className="w-full sm:w-auto"
+            >
+              <X className="mr-2 h-4 w-4" />
               Cancelar
             </Button>
-            <Button onClick={handleSaveEdit}>Guardar Cambios</Button>
+            <Button
+              onClick={handleSaveEdit}
+              className="w-full sm:w-auto mt-3 sm:mt-0"
+            >
+              <Save className="mr-2 h-4 w-4" />
+              Guardar Cambios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openChangePass} onOpenChange={setOpenChangePass}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-center text-xl font-semibold">
+              <Lock className="inline-block mr-2 h-5 w-5" />
+              Cambiar contraseña de Usuario
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="currentPassword" className="text-sm font-medium">
+                Contraseña de Administrador
+              </Label>
+              <div className="relative">
+                <Input
+                  placeholder="Ingrese su contraseña"
+                  id="currentPassword"
+                  type={showPassword.admin ? "text" : "password"}
+                  value={contraseñaAdmin}
+                  onChange={(e) => setContraseñaAdmin(e.target.value)}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowPassword({
+                      ...showPassword,
+                      admin: !showPassword.admin,
+                    })
+                  }
+                  className="absolute inset-y-0 right-0 flex items-center pr-3"
+                >
+                  {showPassword.admin ? (
+                    <EyeOff className="h-4 w-4 text-gray-400" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-gray-400" />
+                  )}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="newPassword" className="text-sm font-medium">
+                Nueva Contraseña
+              </Label>
+              <div className="relative">
+                <Input
+                  id="newPassword"
+                  type={showPassword.user ? "text" : "password"}
+                  placeholder="Ingrese la nueva contraseña del usuario"
+                  value={newUserPass}
+                  onChange={(e) => setNewUserPass(e.target.value)}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setShowPassword({
+                      ...showPassword,
+                      user: !showPassword.user,
+                    })
+                  }
+                  className="absolute inset-y-0 right-0 flex items-center pr-3"
+                >
+                  {showPassword.user ? (
+                    <EyeOff className="h-4 w-4 text-gray-400" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-gray-400" />
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="sm:justify-between">
+            <Button
+              variant="outline"
+              onClick={() => setOpenChangePass(false)}
+              className="w-full sm:w-auto"
+            >
+              <X className="mr-2 h-4 w-4" />
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleChangePasswordUser}
+              className="w-full sm:w-auto mt-3 sm:mt-0"
+            >
+              <Save className="mr-2 h-4 w-4" />
+              Guardar Cambios
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

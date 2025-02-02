@@ -280,6 +280,8 @@ export default function ProspectoHistorial() {
       return;
     }
 
+    console.log("El prospecto seleccionado es: ", prospecto);
+
     const newCustomer = {
       prospectoId: prospectoId,
       nombre: prospecto.nombreCompleto,
@@ -287,17 +289,19 @@ export default function ProspectoHistorial() {
       correo: prospecto.correo || "",
       telefono: prospecto.telefono || "",
       direccion: prospecto.direccion || "",
-      municipioId: prospecto.municipio.id || null,
-      departamentoId: prospecto.departamento.id || null,
-      tipoCliente: prospecto.tipoCliente,
-      volumenCompra: prospecto.volumenCompra,
-      presupuestoMensual: prospecto.presupuestoMensual,
-      preferenciaContacto: prospecto.preferenciaContacto,
-      categoriasInteres: prospecto.categoriasInteres,
+      municipioId: prospecto.municipio?.id || null,
+      departamentoId: prospecto.departamento?.id || null,
+      tipoCliente: prospecto.tipoCliente || "",
+      volumenCompra: prospecto.volumenCompra || "",
+      presupuestoMensual: prospecto.presupuestoMensual || "",
+      preferenciaContacto: prospecto.preferenciaContacto || "",
+      categoriasInteres: prospecto.categoriasInteres || [],
       comentarios: prospecto.comentarios || "",
-      latitud: prospecto.ubicacion.latitud || null,
-      longitud: prospecto.ubicacion.longitud || null,
+      latitud: prospecto.ubicacion ? prospecto.ubicacion.latitud : null,
+      longitud: prospecto.ubicacion ? prospecto.ubicacion.longitud : null,
     };
+
+    console.log("Lo que estamos enviando es: ", newCustomer);
 
     toast.promise(
       new Promise((resolve, reject) => {
@@ -496,7 +500,7 @@ export default function ProspectoHistorial() {
                             variant={
                               prospect.estado === "EN_PROSPECTO"
                                 ? "default"
-                                : "secondary"
+                                : "destructive"
                             }
                           >
                             {prospect.estado === "CERRADO"

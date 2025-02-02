@@ -25,10 +25,12 @@ import {
   Calendar,
   CheckCircle2,
   Coins,
+  CreditCard,
   Plus,
   Printer,
   Search,
   ShoppingCartIcon,
+  Text,
   X,
   XIcon,
 } from "lucide-react";
@@ -47,6 +49,7 @@ import localizedFormat from "dayjs/plugin/localizedFormat";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import { Link } from "react-router-dom";
 import SelectComponent from "react-select";
+import { useStore } from "@/Context/ContextSucursal";
 dayjs.extend(localizedFormat);
 dayjs.extend(customParseFormat);
 dayjs.locale("es");
@@ -109,43 +112,43 @@ interface Descuento {
   creadoEn: string;
   actualizadoEn: string;
 }
+interface UserTokenInfo {
+  nombre: string;
+  correo: string;
+  rol: string;
+  sub: number;
+}
+
+interface Cliente2 {
+  actualizadoEn: string;
+  correo: string;
+  creadoEn: string;
+  descuentos: Descuento[];
+  direccion: string;
+  id: number;
+  nombre: string;
+  apellido: string;
+  telefono: string;
+}
+
+interface Visita2 {
+  actualizadoEn: string;
+  cliente: Cliente2;
+  clienteId: number;
+  creadoEn: string;
+  estadoVisita: string;
+  fin: string | null;
+  id: number;
+  inicio: string;
+  motivoVisita: string;
+  observaciones: string | null;
+  tipoVisita: string;
+  usuarioId: number;
+  ventaId: number | null;
+}
 
 export default function MakeSale() {
-  interface UserTokenInfo {
-    nombre: string;
-    correo: string;
-    rol: string;
-    sub: number;
-  }
-
-  interface Cliente2 {
-    actualizadoEn: string;
-    correo: string;
-    creadoEn: string;
-    descuentos: Descuento[];
-    direccion: string;
-    id: number;
-    nombre: string;
-    apellido: string;
-    telefono: string;
-  }
-
-  interface Visita2 {
-    actualizadoEn: string;
-    cliente: Cliente2;
-    clienteId: number;
-    creadoEn: string;
-    estadoVisita: string;
-    fin: string | null;
-    id: number;
-    inicio: string;
-    motivoVisita: string;
-    observaciones: string | null;
-    tipoVisita: string;
-    usuarioId: number;
-    ventaId: number | null;
-  }
-
+  const empresaId = useStore((state) => state.sucursalId) ?? 0;
   const [tokenUser, setTokenUser] = useState<UserTokenInfo | null>(null);
 
   useEffect(() => {
@@ -321,23 +324,61 @@ export default function MakeSale() {
 
   console.log(cart);
 
-  const formatoCartData = (cart: (Producto & { quantity: number })[]) => {
-    return {
+  type SaleData = {
+    // Campos para ventas normales (obligatorios)
+    monto: number;
+    montoConDescuento: number;
+    metodoPago: string;
+    empresaId: number;
+    descuento?: number;
+    clienteId?: number;
+    vendedorId?: number;
+    productos: {
+      productoId: number;
+      cantidad: number;
+      precio: number;
+    }[];
+
+    // Campos opcionales (solo necesarios si es CREDITO)
+    creditoInicial?: number;
+    numeroCuotas?: number;
+    interes?: number;
+    comentario?: string;
+    diasEntrePagos?: number;
+  };
+
+  const formatoCartData = (
+    cart: (Producto & { quantity: number })[]
+  ): SaleData => {
+    // Construimos los campos base
+    const baseData: SaleData = {
       monto: cart.reduce(
         (total, item) => total + item.precio * item.quantity,
         0
-      ), // Sumar el monto total
+      ),
       montoConDescuento: calculateTotalConDescuento(),
       metodoPago: selectedMetodPago,
-      descuento: selectedDiscount?.porcentaje, // Ajusta esto según tu lógica
-      clienteId: selectedCustomer?.id, // Supongo que esto vendrá de algún lado, ajusta si es necesario
-      vendedorId: tokenUser?.sub, // También ajusta según tu contexto
+      empresaId: empresaId,
+      descuento: selectedDiscount?.porcentaje,
+      clienteId: selectedCustomer?.id,
+      vendedorId: tokenUser?.sub,
       productos: cart.map((item) => ({
-        productoId: item.id, // Cambiar 'id' a 'productoId'
-        cantidad: item.quantity, // La cantidad de productos
-        precio: item.precio, // El precio del producto
+        productoId: item.id,
+        cantidad: item.quantity,
+        precio: item.precio,
       })),
     };
+
+    // Si es crédito, añadimos los campos de crédito
+    if (selectedMetodPago === "CREDITO") {
+      baseData.creditoInicial = creditoInfo.creditoInicial || 0;
+      baseData.numeroCuotas = creditoInfo.numeroCuotas || 0;
+      baseData.interes = creditoInfo.interes || 0;
+      baseData.comentario = creditoInfo.comentario || undefined;
+      baseData.diasEntrePagos = creditoInfo.diasEntrePagos || undefined;
+    }
+
+    return baseData;
   };
 
   const clearCart = () => {
@@ -372,11 +413,10 @@ export default function MakeSale() {
   };
 
   const sendCartData = async (cart: (Producto & { quantity: number })[]) => {
-    const formateado = formatoCartData(cart);
+    const formateado: SaleData = formatoCartData(cart);
 
-    console.log("La data a enviar es: ", formateado);
+    console.log("Data a enviar:", formateado);
 
-    // Verifica que los campos requeridos estén completos
     if (
       !formateado.clienteId ||
       typeof formateado.monto === "undefined" ||
@@ -389,17 +429,31 @@ export default function MakeSale() {
       return;
     }
 
+    // Validaciones adicionales si es CREDITO
+    if (formateado.metodoPago === "CREDITO") {
+      if (
+        !formateado.numeroCuotas ||
+        formateado.numeroCuotas <= 0 ||
+        !formateado.interes ||
+        !formateado.diasEntrePagos ||
+        formateado.diasEntrePagos < 0 ||
+        formateado.interes < 0
+      ) {
+        toast.info("Datos de crédito inválidos. Revisa cuotas e interés.");
+        return;
+      }
+    }
+
     try {
-      setIsSubmitting(true); // Deshabilitar el botón
-      console.log(formateado);
+      setIsSubmitting(true);
       const response = await axios.post(`${API_URL}/sale`, formateado);
       if (response.status === 200 || response.status === 201) {
         setSaleMade(response.data);
         toast.success("Venta creada");
         clearCart();
         setSelectedCustomer(null);
-        setIsSubmitting(false); // Habilitar el botón si la venta es exitosa
-        setShowCartModal(false); // Opcional: cerrar el modal si la venta es exitosa
+        setIsSubmitting(false);
+        setShowCartModal(false);
         setTimeout(() => {
           setOpenDialogSaleMade(true);
         }, 1500);
@@ -407,9 +461,10 @@ export default function MakeSale() {
     } catch (error) {
       console.log(error);
       toast.error("Error al crear venta");
-      setIsSubmitting(false); // Rehabilitar el botón si hay un error
+      setIsSubmitting(false);
     }
   };
+
   //----------------
   const [registroAbierto, setRegistroAbierto] = useState<Visita2 | null>(null);
 
@@ -455,6 +510,54 @@ export default function MakeSale() {
     registroAbierto?.clienteId
   );
 
+  // async function realizarVentaConVisita(
+  //   cart: (Producto & { quantity: number })[]
+  // ) {
+  //   const formateado = formatoCartData(cart);
+
+  //   console.log("La data a enviar es: ", formateado);
+
+  //   // Verifica que los campos requeridos estén completos
+  //   if (
+  //     !formateado.clienteId ||
+  //     typeof formateado.monto === "undefined" ||
+  //     !formateado.productos ||
+  //     !formateado.vendedorId ||
+  //     !formateado.montoConDescuento ||
+  //     !formateado.metodoPago
+  //   ) {
+  //     toast.info("Faltan campos sin llenar");
+  //     return;
+  //   }
+  //   console.log("Los datos a enviar son:");
+
+  //   console.log({
+  //     formateado,
+  //     registroVisitaId: registroAbierto?.id,
+  //   });
+
+  //   try {
+  //     setIsSubmitting(true); // Deshabilitar el botón
+  //     console.log(formateado);
+  //     const response = await axios.post(`${API_URL}/sale/sale-for-regis`, {
+  //       ...formateado,
+  //       registroVisitaId: registroAbierto?.id,
+  //     });
+  //     if (response.status === 200 || response.status === 201) {
+  //       toast.success("Venta creada");
+  //       clearCart();
+  //       setIsSubmitting(false); // Habilitar el botón si la venta es exitosa
+  //       setShowCartModal(false); // Opcional: cerrar el modal si la venta es exitosa
+  //     }
+  //   } catch (error) {
+  //     console.log(error);
+  //     toast.error("Error al crear venta");
+  //     setIsSubmitting(false); // Rehabilitar el botón si hay un error
+  //   }
+  //   console.log("La otra funcion nueva");
+  //   console.log("El cart es: ", cart);
+  //   console.log("El id de registro abierto es: ", registroAbierto?.id);
+  // }
   async function realizarVentaConVisita(
     cart: (Producto & { quantity: number })[]
   ) {
@@ -462,7 +565,7 @@ export default function MakeSale() {
 
     console.log("La data a enviar es: ", formateado);
 
-    // Verifica que los campos requeridos estén completos
+    // Validar campos requeridos
     if (
       !formateado.clienteId ||
       typeof formateado.monto === "undefined" ||
@@ -474,34 +577,53 @@ export default function MakeSale() {
       toast.info("Faltan campos sin llenar");
       return;
     }
-    console.log("Los datos a enviar son:");
 
-    console.log({
+    // Validaciones adicionales si es CREDITO
+    if (formateado.metodoPago === "CREDITO") {
+      if (
+        !formateado.numeroCuotas ||
+        formateado.numeroCuotas <= 0 ||
+        !formateado.interes ||
+        formateado.interes < 0 ||
+        !formateado.creditoInicial ||
+        formateado.creditoInicial < 0
+      ) {
+        toast.info(
+          "Datos de crédito inválidos. Revisa cuotas, interés y crédito inicial."
+        );
+        return;
+      }
+    }
+
+    console.log("Datos a enviar:", {
       formateado,
       registroVisitaId: registroAbierto?.id,
     });
 
     try {
       setIsSubmitting(true); // Deshabilitar el botón
-      console.log(formateado);
       const response = await axios.post(`${API_URL}/sale/sale-for-regis`, {
         ...formateado,
         registroVisitaId: registroAbierto?.id,
       });
+
       if (response.status === 200 || response.status === 201) {
+        setSaleMade(response.data); // Guardar datos de la venta
         toast.success("Venta creada");
         clearCart();
         setIsSubmitting(false); // Habilitar el botón si la venta es exitosa
-        setShowCartModal(false); // Opcional: cerrar el modal si la venta es exitosa
+        setShowCartModal(false); // Cerrar el modal
+
+        // Mostrar el diálogo después de un breve retraso
+        setTimeout(() => {
+          setOpenDialogSaleMade(true);
+        }, 1500);
       }
     } catch (error) {
       console.log(error);
       toast.error("Error al crear venta");
       setIsSubmitting(false); // Rehabilitar el botón si hay un error
     }
-    console.log("La otra funcion nueva");
-    console.log("El cart es: ", cart);
-    console.log("El id de registro abierto es: ", registroAbierto?.id);
   }
 
   console.log("El usuario seleccionado es: ", selectedCustomer);
@@ -564,10 +686,68 @@ export default function MakeSale() {
     label: `${customer.nombre} ${customer.apellido || ""}`,
   }));
 
+  const opcionesDescuento = selectedCustomer?.descuentos.map((desc) => ({
+    value: desc.id,
+    label: `${desc.porcentaje.toString()}`,
+  }));
+
+  // Tipos para el estado de la información del crédito
+  type CreditoInfo = {
+    creditoInicial: number | null;
+    numeroCuotas: number | null;
+    interes: number | null;
+    comentario: string | null;
+    diasEntrePagos: number | null;
+  };
+
+  const [creditoInfo, setCreditoInfo] = useState<CreditoInfo>({
+    creditoInicial: null,
+    interes: null,
+    numeroCuotas: null,
+    comentario: null,
+    diasEntrePagos: null,
+  });
+
+  const [montoTotal, setMontoTotal] = useState<number>(
+    formatoCartData(cart).montoConDescuento // Suponiendo que formatoCartData retorna el monto con descuento
+  );
+
+  // Cálculo directo, sin useMemo
+  const { interes, creditoInicial, numeroCuotas } = creditoInfo;
+  let saldoRestante = 0;
+  let montoInteres = 0;
+  let montoTotalConInteres = 0;
+  let pagoPorCuota = 0;
+
+  if (montoTotal && numeroCuotas && interes) {
+    montoInteres = montoTotal * (interes / 100);
+    montoTotalConInteres = montoTotal + montoInteres;
+    saldoRestante = montoTotalConInteres - (creditoInicial || 0);
+    pagoPorCuota = saldoRestante > 0 ? saldoRestante / numeroCuotas : 0;
+  }
+
+  useEffect(() => {
+    setMontoTotal(formatoCartData(cart).montoConDescuento);
+  }, [cart, selectedDiscount]);
+
+  const fechasDePago = [];
+  let hoyFecha = dayjs();
+
+  if (creditoInfo.diasEntrePagos && creditoInfo.numeroCuotas) {
+    for (let indice = 0; indice < creditoInfo?.numeroCuotas; indice++) {
+      const fechaPago = hoyFecha.add(creditoInfo.diasEntrePagos, "day");
+      fechasDePago.push(fechaPago.format("D [de] MMMM [de] YYYY"));
+      hoyFecha = fechaPago;
+    }
+  }
+
+  // const fechas =
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div className="grid grid-cols-1 gap-4">
       {/* Selección de Cliente y Descuento */}
-      <div className="lg:col-span-2">
+      {/* <div className="lg:col-span-2"> */}
+      <div className="w-full p-4 ">
         <Card className="mb-8 shadow-xl">
           <CardContent>
             <h3 className="text-md font-semibold mb-4 pt-2">
@@ -620,35 +800,37 @@ export default function MakeSale() {
             {selectedCustomer && (
               <div className="mt-4">
                 <h3 className="font-semibold mb-2">Descuentos disponibles:</h3>
-                <Select
-                  value={selectedDiscount?.id?.toString() || ""}
-                  onValueChange={(value) => {
-                    const discount = selectedCustomer.descuentos.find(
-                      (d) => d.id === parseInt(value)
-                    );
-                    setSelectedDiscount(discount || null);
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar descuento" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {selectedCustomer?.descuentos.length > 0 ? (
-                      selectedCustomer.descuentos.map((discount) => (
-                        <SelectItem
-                          key={discount.id}
-                          value={discount.id.toString()}
-                        >
-                          {discount.porcentaje}%
-                        </SelectItem>
-                      ))
-                    ) : (
-                      <SelectItem disabled value="0">
-                        No hay descuentos disponibles
-                      </SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
+
+                <div>
+                  <SelectComponent
+                    options={opcionesDescuento || []} // Pasar las opciones de descuento
+                    isClearable={true} // Permitir limpiar la selección
+                    value={
+                      selectedDiscount
+                        ? {
+                            value: selectedDiscount.id,
+                            label: `${selectedDiscount.porcentaje}%`,
+                          }
+                        : null
+                    }
+                    onChange={(selectedOption) => {
+                      if (selectedOption === null) {
+                        // Si se limpia el selector
+                        setSelectedDiscount(null);
+                      } else {
+                        // Si se selecciona una opción
+                        const discount = selectedCustomer?.descuentos.find(
+                          (desc) => desc.id === selectedOption.value
+                        );
+                        setSelectedDiscount(discount || null);
+                      }
+                    }}
+                    placeholder="Seleccionar descuento"
+                    noOptionsMessage={() => "No hay descuentos disponibles"}
+                    isSearchable
+                    className="text-black"
+                  />
+                </div>
               </div>
             )}
           </CardContent>
@@ -691,10 +873,11 @@ export default function MakeSale() {
       </div>
 
       {/* Método de Pago y Carrito */}
-      <div className="lg:col-span-1">
+      <div className="w-full p-4 ">
         <Card className="mb-1 shadow-xl">
           <CardContent>
             <h3 className="text-md font-semibold mb-4 pt-2">Método de Pago</h3>
+
             <Select
               value={selectedMetodPago}
               onValueChange={setSelectedMetodPago}
@@ -708,6 +891,8 @@ export default function MakeSale() {
                 <SelectItem value="TRANSFERENCIA_BANCO">
                   TRANSFERENCIA BANCARIA
                 </SelectItem>
+
+                <SelectItem value="CREDITO">CREDITO</SelectItem>
               </SelectContent>
             </Select>
 
@@ -822,8 +1007,210 @@ export default function MakeSale() {
         </Card>
       </div>
 
+      {/* DONDE METER INFO DEL CREDITO */}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {selectedMetodPago === "CREDITO" && (
+          <div className="col-span-full">
+            <div className="w-full mx-auto bg-white dark:bg-gray-900 p-6 rounded-lg shadow-md">
+              {/* ontenido */}
+
+              <div className=" w-full mt-8 animate-in fade-in duration-500">
+                <h4 className="text-lg font-semibold mb-4 text-center text-primary">
+                  Información del Crédito
+                </h4>
+                <div className="space-y-6">
+                  {/* Número de Cuotas */}
+                  <div className="flex items-center gap-4">
+                    <CreditCard className="w-5 h-5 text-gray-500" />
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">
+                        Número de Cuotas
+                      </label>
+                      <Input
+                        type="number"
+                        min="1"
+                        placeholder="Ej: 12 cuotas"
+                        value={creditoInfo.numeroCuotas || ""}
+                        onChange={(e) =>
+                          setCreditoInfo((prev) => ({
+                            ...prev,
+                            numeroCuotas: e.target.value
+                              ? parseInt(e.target.value)
+                              : null,
+                          }))
+                        }
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <Calendar className="w-5 h-5 text-gray-500" />
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">
+                        Días entre pagos
+                      </label>
+                      <Input
+                        type="number"
+                        min="1"
+                        placeholder="Ej: 15 (quincenal) 30 (mensual)"
+                        value={creditoInfo.diasEntrePagos || ""}
+                        onChange={(e) =>
+                          setCreditoInfo((prev) => ({
+                            ...prev,
+                            diasEntrePagos: e.target.value
+                              ? parseInt(e.target.value)
+                              : null,
+                          }))
+                        }
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Interés */}
+                  <div className="flex items-center gap-4">
+                    <CreditCard className="w-5 h-5 text-gray-500" />
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">
+                        Interés (%)
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Ej: 10%"
+                        value={creditoInfo.interes || ""}
+                        onChange={(e) =>
+                          setCreditoInfo((prev) => ({
+                            ...prev,
+                            interes: e.target.value
+                              ? parseFloat(e.target.value)
+                              : null,
+                          }))
+                        }
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Pago Inicial */}
+                  <div className="flex items-center gap-4">
+                    <Coins className="w-5 h-5 text-gray-500" />
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">
+                        Pago Inicial
+                      </label>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="Ej: 1000"
+                        value={creditoInfo.creditoInicial || ""}
+                        onChange={(e) =>
+                          setCreditoInfo((prev) => ({
+                            ...prev,
+                            creditoInicial: e.target.value
+                              ? parseFloat(e.target.value)
+                              : null,
+                          }))
+                        }
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+
+                  {/* COMENTARIO SOBRE EL CREDITO */}
+                  <div className="flex items-center gap-4">
+                    <Text className="w-5 h-5 text-gray-500" />
+                    <div className="flex-1">
+                      <label className="text-sm font-medium text-gray-700 mb-1 block">
+                        Comentario
+                      </label>
+                      <Textarea
+                        placeholder="Opcional"
+                        value={creditoInfo.comentario || ""}
+                        onChange={(e) =>
+                          setCreditoInfo((prev) => ({
+                            ...prev,
+                            comentario: e.target.value,
+                          }))
+                        }
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Resumen del Crédito */}
+              <div className="p-6 mt-5 bg-gray-50 rounded-lg shadow-md dark:bg-transparent border-2">
+                <h4 className="text-lg font-semibold mb-4 text-center text-primary">
+                  Resumen del Crédito
+                </h4>
+                <div className="space-y-2">
+                  <p>
+                    <strong>Saldo Restante a Pagar:</strong>{" "}
+                    {saldoRestante.toLocaleString("es-GT", {
+                      style: "currency",
+                      currency: "GTQ",
+                    })}
+                  </p>
+                  <p>
+                    <strong>Monto sin interés:</strong>{" "}
+                    {montoTotal.toLocaleString("es-GT", {
+                      style: "currency",
+                      currency: "GTQ",
+                    })}
+                  </p>
+                  <p>
+                    <strong>Monto de Interés:</strong>{" "}
+                    {montoInteres.toLocaleString("es-GT", {
+                      style: "currency",
+                      currency: "GTQ",
+                    })}
+                  </p>
+                  <p>
+                    <strong>Monto Total con Interés:</strong>{" "}
+                    {montoTotalConInteres.toLocaleString("es-GT", {
+                      style: "currency",
+                      currency: "GTQ",
+                    })}
+                  </p>
+                  <p>
+                    <strong>Pago por Cada Cuota:</strong>{" "}
+                    {pagoPorCuota.toLocaleString("es-GT", {
+                      style: "currency",
+                      currency: "GTQ",
+                    })}
+                  </p>
+                </div>
+                <div className="">
+                  {fechasDePago.length <= 0 ? (
+                    <p className="text-sm font-thin py-2">
+                      Ingrese el número de cuotas y los días entre pagos.
+                    </p>
+                  ) : (
+                    <ul>
+                      {fechasDePago.map((fecha, index) => (
+                        <li key={index}>
+                          <span className="font-bold">{index + 1}: </span>
+                          <span className="">{fecha}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Productos Filtrados */}
-      <div className="lg:col-span-3">
+      {/* <div className="lg:col-span-3"> */}
+      <div className="w-full p-4">
         <Card className="mb-4 shadow-xl">
           <CardContent>
             <div className="pt-5 flex flex-col md:flex-row items-start space-y-4 md:space-y-0 md:space-x-4">

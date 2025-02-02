@@ -1,6 +1,5 @@
 import "./App.css";
 import Login from "./components/Auth/Login";
-// import Home from "./Pages/Home";
 import Dashboard from "./Pages/Dashboard";
 import {
   BrowserRouter as Router,
@@ -8,8 +7,6 @@ import {
   Routes,
   Navigate,
 } from "react-router-dom";
-// import AdminDashboard from "./components/ComponentsMainDashboard/AdminDashboard";
-// import { ProtectedRoute } from "./components/Auth/ProtectedRoute";
 import CreateUser from "./components/Auth/CreateUser";
 import { Toaster } from "sonner";
 import Customers from "./Pages/Customers";
@@ -47,6 +44,10 @@ import ChatsAnalytics from "./Pages/Analytics/ChatsAnalytics";
 import Reportes from "./Pages/Reportes/Reportes";
 import SolicitarRecuperacion from "./Pages/Recovery/SolicitarRecuperacion";
 import RestablecerContrasena from "./Pages/Recovery/RestablecerContrasena";
+import Saldos from "./Pages/Saldos/Saldos";
+import PaymentCreditPage from "./components/PDF/PDF CREDITOS/PaymentCreditPage";
+import Creditos from "./Pages/Creditos/Creditos";
+import Cancelados from "./Pages/Cancelados/Cancelados";
 
 function App() {
   return (
@@ -125,7 +126,7 @@ function App() {
               }
             />
             <Route
-              path="/historial-citas"
+              path="/historial-prospectos"
               element={
                 <ProtectedRoute>
                   <ProspectoHistorial />
@@ -338,9 +339,45 @@ function App() {
             <Route
               path="/restablecer-contraseña"
               element={
-                // <ProtectedRoute>
-                <RestablecerContrasena />
-                // </ProtectedRoute>
+                <ProtectedRoute>
+                  <RestablecerContrasena />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/saldos"
+              element={
+                <ProtectedRoute>
+                  <Saldos />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/comprobante-pago/:id"
+              element={
+                <ProtectedRoute>
+                  <PaymentCreditPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/creditos"
+              element={
+                <ProtectedRoute>
+                  <Creditos />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/seguimiento-de-cancelaciones"
+              element={
+                <ProtectedRoute>
+                  <Cancelados />
+                </ProtectedRoute>
               }
             />
           </Route>

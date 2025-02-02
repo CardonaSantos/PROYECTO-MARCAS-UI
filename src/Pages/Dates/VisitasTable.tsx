@@ -171,7 +171,7 @@ export default function VisitasTable() {
 
   return (
     <div className="container mx-auto py-10 px-4 sm:px-6 lg:px-8">
-      <Card className="shadow-xl bg-white dark:bg-gray-800">
+      <Card className="shadow-xl bg-white dark:bg-transparent">
         <CardHeader className="border-b">
           <CardTitle className="text-2xl font-bold flex items-center">
             <Briefcase className="mr-2 h-6 w-6 text-primary" />

@@ -52,12 +52,19 @@ interface Vendedor {
   creadoEn: string;
   actualizadoEn: string;
 }
-
-enum MetodoPago {
-  CONTADO,
-  TARJETA,
-  TRANSFERENCIA_BANCO,
+export enum MetodoPago {
+  CREDITO = "CREDITO",
+  CONTADO = "CONTADO",
+  TARJETA = "TARJETA",
+  TRANSFERENCIA_BANCO = "TRANSFERENCIA_BANCO",
 }
+
+// export enum MetodoPago {
+//   CONTADO,
+//   TARJETA,
+//   TRANSFERENCIA_BANCO,
+//   CREDITO,
+// }
 
 export type SalesType = Venta[];
 export type SaleTypeOne = Venta;

@@ -1,5 +1,13 @@
 import { useEffect, useState } from "react";
-import { Coins, User2Icon } from "lucide-react";
+import {
+  AlertCircle,
+  AlertTriangle,
+  Check,
+  Coins,
+  ThumbsDown,
+  User2Icon,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -50,12 +58,32 @@ import { useSocket } from "../Context/SocketProvider ";
 import { LastSales } from "@/Utils/Types2/LastSales";
 import { SalesMonthYear } from "@/Utils/Types2/SalesMonthTotal";
 import axios from "axios";
-import { Dialog, DialogContent, DialogHeader } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useStore } from "@/Context/ContextSucursal";
 const API_URL = import.meta.env.VITE_API_URL;
 
 import { RadialLinearScale, Filler } from "chart.js";
+
+import dayjs from "dayjs";
+import "dayjs/locale/es";
+import utc from "dayjs/plugin/utc";
+import localizedFormat from "dayjs/plugin/localizedFormat";
+
+dayjs.extend(utc);
+dayjs.extend(localizedFormat);
+dayjs.locale("es");
+
+const formatearFecha = (fecha: string) => {
+  // Formateo en UTC sin conversión a local
+  return dayjs(fecha).format("DD/MM/YYYY hh:mm A");
+};
 
 ChartJS.register(
   RadialLinearScale,
@@ -107,35 +135,6 @@ export default function Dashboard() {
     SolicitudDescuento[]
   >([]);
 
-  // const [locations, setLocations] = useState<LocationReceived[]>([]);
-  // useEffect(() => {
-  //   if (socket) {
-  //     const locationListener = (locationData: LocationReceived) => {
-  //       console.log("Nueva ubicación recibida:", locationData);
-
-  //       setLocations((prevLocations) => {
-  //         const existingLocationIndex = prevLocations.findIndex(
-  //           (loc) => loc.usuarioId === locationData.usuarioId
-  //         );
-
-  //         if (existingLocationIndex !== -1) {
-  //           const updatedLocations = [...prevLocations];
-  //           updatedLocations[existingLocationIndex] = locationData;
-  //           return updatedLocations;
-  //         } else {
-  //           return [...prevLocations, locationData];
-  //         }
-  //       });
-  //     };
-
-  //     socket.on("receiveLocation", locationListener);
-
-  //     return () => {
-  //       socket.off("receiveLocation", locationListener);
-  //     };
-  //   }
-  // }, [socket]);
-
   //--------------------------ESTADOS DE FUNCIONES Y USEEFFECT--------------------------------------------
   const [montoMes, setMontoMes] = useState(0);
   const [montoSemana, setMontoSemana] = useState(0);
@@ -157,6 +156,7 @@ export default function Dashboard() {
   const ventasTotalesData = salesMonthYear.map((data) => data.ventasTotales);
 
   const userRol = useStore((state) => state.userRol);
+  // const userId = useStore((state) => state.userId) ?? 0;
 
   const dataChart = {
     labels: labels,
@@ -295,52 +295,91 @@ export default function Dashboard() {
 
   //CREAR EL REGISTRO DE DESCUENTO, LANZAR NOTIFICACION
   const createDiscountFromRequest = async () => {
-    console.log("Los datos a usar son: ", porcentaje, clienteId);
+    console.log("Datos para el descuento:", {
+      porcentaje,
+      clienteId,
+      vendedorId,
+      selectedRequestId,
+    });
+
+    // Validar que los datos esenciales estén definidos antes de hacer la petición
+    if (!porcentaje || !clienteId || !vendedorId || !selectedRequestId) {
+      toast.error(
+        "Faltan datos para procesar el descuento. Verifica la información."
+      );
+      return;
+    }
+
     try {
       const response = await axios.post(
         `${API_URL}/location/create-discount-from-request`,
         {
-          porcentaje: porcentaje,
-          clienteId: clienteId,
-          vendedorId: vendedorId,
+          porcentaje,
+          clienteId,
+          vendedorId,
           requestId: selectedRequestId,
         }
       );
 
-      if (response.status === 200 || response.status == 201) {
-        toast.success("Petición acatada, descuento asignado");
-        getRequestsDiscounts();
+      if (response?.status === 200 || response?.status === 201) {
+        toast.success("Descuento aplicado correctamente.");
+        getRequestsDiscounts(); // Actualizar la lista de descuentos
+      } else {
+        toast.info("Algo salió mal, recargue la pagina y vuelva a intentar.");
       }
-
-      setShowAcept(false);
     } catch (error) {
-      console.error("Error al aceptar la solicitud de descuento:", error);
+      console.error("Error al procesar el descuento:", error);
+      toast.error("No se pudo aplicar el descuento. Intenta nuevamente.");
+    } finally {
+      setShowAcept(false); // Cerrar el modal u ocultar el formulario
     }
   };
 
   //ELIMINAR EL REGISTRO DE PETICION DE DESCUENTO, Y NOTIFICAR AL CLIENTE QUE NO SE LE ASIGNÓ
-  const rejectdiscountRequest = async () => {
-    console.log("Los datos a usar son: ", porcentaje, clienteId);
+  const rejectDiscountRequest = async () => {
+    console.log("Datos para rechazar la solicitud:", {
+      vendedorId,
+      selectedRequestId,
+    });
+
+    // Validar que los datos esenciales estén definidos antes de hacer la petición
+    if (!vendedorId || !selectedRequestId) {
+      toast.error(
+        "Faltan datos para rechazar la solicitud. Verifica la información."
+      );
+      return;
+    }
+
     try {
       const response = await axios.post(
         `${API_URL}/location/delete-discount-regist`,
         {
-          vendedorId: vendedorId,
+          vendedorId,
           requestId: selectedRequestId,
         }
       );
 
-      if (response.status === 200 || response.status === 201) {
-        toast.success("Petición rechazada");
-        getRequestsDiscounts();
-        setShowReject(false);
+      if (response?.status === 200 || response?.status === 201) {
+        toast.success(
+          "La solicitud de descuento ha sido rechazada correctamente."
+        );
+        getRequestsDiscounts(); // Actualizar la lista
+      } else {
+        toast.info(
+          "La solicitud fue procesada, pero no se obtuvo una respuesta esperada."
+        );
       }
     } catch (error) {
-      console.error("Error al aceptar la solicitud de descuento:", error);
+      console.error("Error al rechazar la solicitud de descuento:", error);
+      toast.error("No se pudo rechazar la solicitud. Intenta nuevamente.");
+    } finally {
+      setShowReject(false); // Cerrar el modal u ocultar el formulario
     }
   };
 
   console.log("Los usuarios conectados son: ", connectedUsers);
+
+  // Componente principal
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -348,7 +387,7 @@ export default function Dashboard() {
       <header className="bg-white dark:bg-gray-800 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center flex-1">
-            <h1 className="text-2xl font-bold m-3 text-gray-900 dark:text-white">
+            <h1 className="text-3xl font-bold  text-gray-900 dark:text-white">
               Dashboard
             </h1>
           </div>
@@ -517,47 +556,76 @@ export default function Dashboard() {
         </Card>
         {/* DIALOG PARA ACEPTAR */}
         <Dialog open={showAcept} onOpenChange={setShowAcept}>
-          <DialogHeader></DialogHeader>
-          <DialogContent className="p-16">
-            <p className="text-lg font-bold text-center">
-              Se creará una instancia nueva de descuento para este cliente
-            </p>
-            <p className="text-lg font-bold text-center">¿Continuar?</p>
-            <div className="flex gap-2 justify-center items-center">
-              <Button onClick={createDiscountFromRequest} type="button">
-                Aceptar
-              </Button>
-              <Button
-                variant={"destructive"}
-                onClick={() => setShowAcept(false)}
-                type="button"
-              >
-                Cancelar
-              </Button>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
+                <AlertCircle className="h-6 w-6 text-yellow-500" />
+                Confirmar acción
+              </DialogTitle>
+              <DialogDescription className="text-base">
+                Se creará una instancia nueva de descuento para este cliente.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col items-center space-y-4 py-4">
+              <p className="text-lg font-bold text-center">¿Desea continuar?</p>
+              <div className="flex flex-col sm:flex-row gap-3 w-full justify-center">
+                <Button
+                  variant="destructive"
+                  onClick={() => setShowAcept(false)}
+                  type="button"
+                  className="w-full sm:w-auto"
+                >
+                  <X className="mr-2 h-4 w-4" /> Cancelar
+                </Button>
+
+                <Button
+                  onClick={createDiscountFromRequest}
+                  type="button"
+                  className="w-full sm:w-auto"
+                >
+                  <Check className="mr-2 h-4 w-4" /> Aceptar
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
 
         {/* DIALOG PARA RECHAZAR */}
         <Dialog open={showReject} onOpenChange={setShowReject}>
-          <DialogHeader>
-            {/* <DialogTitle>Rechazar Solicitud de Descuento</DialogTitle> */}
-          </DialogHeader>
-          <DialogContent className="p-16">
-            <p className="text-lg font-bold text-center">
-              ¿Estás seguro de que deseas rechazar esta solicitud?
-            </p>
-            <div className="flex gap-2 justify-center items-center">
-              <Button onClick={rejectdiscountRequest} type="button">
-                Rechazar
-              </Button>
-              <Button
-                variant={"destructive"}
-                onClick={() => setShowReject(false)}
-                type="button"
-              >
-                Cancelar
-              </Button>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
+                <AlertTriangle className="h-6 w-6 text-red-500" />
+                Rechazar Solicitud de Descuento
+              </DialogTitle>
+              <DialogDescription className="text-base">
+                Esta acción no se puede deshacer. Por favor, confirme su
+                decisión.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col items-center space-y-4 py-4">
+              <p className="text-lg font-bold text-center">
+                ¿Estás seguro de que deseas rechazar esta solicitud?
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 w-full justify-center">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowReject(false)}
+                  type="button"
+                  className="w-full sm:w-auto"
+                >
+                  <X className="mr-2 h-4 w-4" /> Cancelar
+                </Button>
+
+                <Button
+                  onClick={rejectDiscountRequest}
+                  type="button"
+                  variant="destructive"
+                  className="w-full sm:w-auto"
+                >
+                  <ThumbsDown className="mr-2 h-4 w-4" /> Rechazar
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>
@@ -565,7 +633,7 @@ export default function Dashboard() {
         {/* Sales Section */}
         <Card className="mt-8 shadow-xl">
           <CardHeader>
-            <CardTitle>Últimas ventas</CardTitle>
+            <CardTitle>Transacciones recientes</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
@@ -599,13 +667,19 @@ export default function Dashboard() {
                           ? sale.montoConDescuento
                           : sale.monto}
                       </TableCell>
-                      <TableCell>
-                        {new Date(sale.timestamp).toLocaleDateString()}
-                      </TableCell>
+                      <TableCell>{formatearFecha(sale.timestamp)}</TableCell>
                       <TableCell>
                         {sale.descuento ? sale.descuento + "%" : "No aplicado"}
                       </TableCell>
-                      <TableCell>{sale.metodoPago}</TableCell>
+                      <TableCell
+                        className={`${
+                          sale.metodoPago === "CREDITO"
+                            ? "text-red-500"
+                            : "text-black dark:text-white"
+                        }`}
+                      >
+                        {sale.metodoPago}
+                      </TableCell>
                     </TableRow>
                   ))}
 
@@ -628,6 +702,8 @@ export default function Dashboard() {
           </CardContent>
         </Card>
         {/* VENTAS POR CATEGORÍA */}
+
+        {/* MOSTRAR LOS REGISTROS DE CREDITOS */}
       </main>
 
       {/* Footer */}
