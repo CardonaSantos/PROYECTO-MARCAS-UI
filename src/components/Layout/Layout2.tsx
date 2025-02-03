@@ -40,6 +40,7 @@ import { useStore } from "@/Context/ContextSucursal";
 import { Separator } from "@radix-ui/react-select";
 import message1 from "../../assets/Sounds/message1.mp3";
 import logoEmpresa from "../../assets/images/logoEmpresa.png";
+import { useNotifications } from "@/Context/ContextNotifications";
 
 interface LayoutProps {
   children?: React.ReactNode;
@@ -59,14 +60,13 @@ interface Notification {
   leido: boolean; // Estado de la notificación (si ha sido leída o no)
   remitenteId?: number; // El ID del remitente (opcional)
   creadoEn: Date; // Fecha de creación de la notificación
+  targetUserId: number;
 }
 
 export default function Layout2({ children }: LayoutProps) {
   const socket = useSocket(); // Hook que retorna la instancia del WebSocket
-
-  // Estados
-  // const [locationInterval, setLocationInterval] =
-  //   useState<NodeJS.Timeout | null>(null);
+  // const userRol = useStore((state) => state.userRol);
+  const userId = useStore((state) => state.userId) ?? 0;
   const [tokenUser, setTokenUser] = useState<UserTokenInfo | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -117,7 +117,7 @@ export default function Layout2({ children }: LayoutProps) {
           longitud: position.coords.longitude,
           usuarioId: tokenUser.sub,
         };
-        console.log("Enviando ubicación:", locationData);
+        // console.log("Enviando ubicación:", locationData);
         socket.emit("sendLocation", locationData);
       }
     });
@@ -155,11 +155,47 @@ export default function Layout2({ children }: LayoutProps) {
     getNoti();
   }, [tokenUser]);
 
+  //USEEFFECT DE ADMINS
+  // useEffect(() => {
+  //   if (!socket) return;
+
+  //   const handleAdminNotification = (newNotification: Notification) => {
+  //     setNotifications((prev) => [...prev, newNotification]);
+  //     if (Notification.permission !== "granted") {
+  //       Notification.requestPermission();
+  //     }
+
+  //     if (Notification.permission === "granted") {
+  //       new Notification("Nueva Notificación", {
+  //         body: newNotification.mensaje,
+  //         icon: logoEmpresa,
+  //         badge: logoEmpresa,
+  //       });
+  //     }
+
+  //     const audioNotificacion = new Audio(message1);
+  //     audioNotificacion.play();
+  //   };
+
+  //   socket.on("newNotification", handleAdminNotification);
+  //   return () => {
+  //     socket.off("newNotification", handleAdminNotification);
+  //   };
+  // }, [socket]);
+  //ESTO YA FUNCIONA, TODO BIEN :)))
   useEffect(() => {
-    if (!socket || tokenUser?.rol !== "ADMIN") return;
+    if (!socket || !userId) return;
 
     const handleAdminNotification = (newNotification: Notification) => {
+      if (
+        newNotification.targetUserId &&
+        newNotification.targetUserId !== userId
+      ) {
+        return; // Ignorar notificaciones que no sean para este usuario
+      }
+
       setNotifications((prev) => [...prev, newNotification]);
+
       if (Notification.permission !== "granted") {
         Notification.requestPermission();
       }
@@ -180,7 +216,37 @@ export default function Layout2({ children }: LayoutProps) {
     return () => {
       socket.off("newNotification", handleAdminNotification);
     };
-  }, [socket, tokenUser]);
+  }, [socket, userId]); // Agregado userId para que se actualice correctamente
+
+  // En tu componente Layout2 o contexto
+  // useEffect(() => {
+  //   if (!socket) return;
+
+  //   const handleSellerNotification = (newNotification: Notification) => {
+  //     setNotifications((prev) => [...prev, newNotification]);
+
+  //     if (Notification.permission !== "granted") {
+  //       Notification.requestPermission();
+  //     }
+
+  //     if (Notification.permission === "granted") {
+  //       new Notification("Nueva Notificación", {
+  //         body: newNotification.mensaje,
+  //         icon: logoEmpresa,
+  //         badge: logoEmpresa,
+  //       });
+  //     }
+
+  //     const audioNotificacion = new Audio(message1);
+  //     audioNotificacion.play();
+  //   };
+
+  //   socket.on("newNotificationToSeller", handleSellerNotification);
+
+  //   return () => {
+  //     socket.off("newNotificationToSeller", handleSellerNotification);
+  //   };
+  // }, [socket]);
 
   // Escuchar nuevas notificaciones para vendedores
   // useEffect(() => {
@@ -201,48 +267,51 @@ export default function Layout2({ children }: LayoutProps) {
   //   };
   // }, [socket, tokenUser]);
 
-  useEffect(() => {
-    if (!socket || !tokenUser) return;
+  // useEffect(() => {
+  //   if (!socket || !userId) return;
 
-    console.log("Escuchando notificaciones en Layout2");
+  //   const handleConnect = () => {
+  //     console.log("Re-registrando usuario:", userId, "Socket ID:", socket.id);
+  //     socket.emit("registerUser", Number(userId)); // Forzar re-registro
+  //   };
 
-    // Registrar al usuario cuando se conecta
-    socket.emit("registerUser", tokenUser.sub);
+  //   const handleNotification = (newNotification: Notification) => {
+  //     console.log(
+  //       "La notificación entrante para vendedor es:",
+  //       newNotification
+  //     );
+  //     setNotifications((prev) => [...prev, newNotification]);
 
-    const handleNewNotification = (newNotification: Notification) => {
-      console.log(
-        "La notificación entrante para vendedor es:",
-        newNotification
-      );
-      setNotifications((prev) => [...prev, newNotification]);
+  //     if (Notification.permission !== "granted") {
+  //       Notification.requestPermission();
+  //     }
 
-      // if(notifications.p)
-      // Solicitar permiso para mostrar notificaciones si no se ha hecho antes
+  //     if (Notification.permission === "granted") {
+  //       new Notification("Nueva Notificación", {
+  //         body: newNotification.mensaje,
+  //         icon: logoEmpresa,
+  //         badge: logoEmpresa,
+  //       });
+  //     }
 
-      if (Notification.permission !== "granted") {
-        Notification.requestPermission();
-      }
+  //     const audioNotificacion = new Audio(message1);
+  //     audioNotificacion.play();
+  //   };
 
-      if (Notification.permission === "granted") {
-        new Notification("Nueva Notificación", {
-          body: newNotification.mensaje,
-          icon: logoEmpresa,
-          badge: logoEmpresa,
-        });
-      }
+  //   // Escuchar eventos (¡incluyendo reconexiones!)
+  //   socket.on("connect", handleConnect);
+  //   socket.on("newNotificationToSeller", handleNotification);
 
-      const audioNotificacion = new Audio(message1);
-      audioNotificacion.play();
-    };
+  //   // Registrar inmediatamente si ya está conectado
+  //   if (socket.connected) handleConnect();
 
-    socket.on("newNotificationToSeller", handleNewNotification);
+  //   // Limpiar listeners al desmontar o cambiar userId/socket
+  //   return () => {
+  //     socket.off("connect", handleConnect);
+  //     socket.off("newNotificationToSeller", handleNotification);
+  //   };
+  // }, [socket, userId]); // ¡Dependencias críticas aquí!
 
-    return () => {
-      socket.off("newNotificationToSeller", handleNewNotification);
-    };
-  }, [socket, tokenUser]);
-
-  // Marcar notificación como leída
   const handleVisto = async (notificationId: number) => {
     try {
       const response = await axios.patch(
@@ -277,7 +346,10 @@ export default function Layout2({ children }: LayoutProps) {
     }
   };
 
-  console.log("Mis notificaciones:", notifications);
+  // console.log("Mis notificaciones:", notifications);
+  console.log("MI ACTUAL ID SOCKET ES: ", socket?.id);
+  const notifications2 = useNotifications((state) => state.notifications);
+  console.log("LAS NOTIFICACIONES DEL CONTEXTO SON: ", notifications2);
 
   return (
     <div className="flex min-h-screen">

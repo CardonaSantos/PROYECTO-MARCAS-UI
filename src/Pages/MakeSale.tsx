@@ -163,6 +163,8 @@ export default function MakeSale() {
       }
     }
   }, []);
+  console.log("El token user es: ", tokenUser);
+
   // Estados
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Todas");
@@ -470,10 +472,10 @@ export default function MakeSale() {
 
   useEffect(() => {
     const getRegistOpen = async () => {
-      if (tokenUser) {
+      if (tokenUser?.sub) {
         try {
           const response = await axios.get(
-            `${API_URL}/date/regist-open/${tokenUser.sub}`
+            `${API_URL}/date/regist-open/${tokenUser?.sub}`
           );
 
           if (response.status === 200) {
@@ -484,15 +486,15 @@ export default function MakeSale() {
 
             // Usa la data recibida directamente para actualizar el selectedCustomer
             setSelectedCustomer({
-              id: visitaData?.cliente.id ?? 0, // Asegura que no sea undefined
-              nombre: visitaData?.cliente.nombre ?? "", // Proporciona un valor por defecto si es undefined
-              correo: visitaData?.cliente.correo ?? "",
-              apellido: visitaData?.cliente.apellido ?? "",
-              telefono: visitaData?.cliente.telefono ?? "",
-              direccion: visitaData?.cliente.direccion ?? "",
-              creadoEn: visitaData?.cliente.creadoEn ?? "",
-              actualizadoEn: visitaData?.cliente.actualizadoEn ?? "",
-              descuentos: visitaData?.cliente.descuentos ?? [], // Proporciona un arreglo vacío si es undefined
+              id: visitaData?.cliente?.id ?? 0, // Asegura que no sea undefined
+              nombre: visitaData?.cliente?.nombre ?? "", // Proporciona un valor por defecto si es undefined
+              correo: visitaData?.cliente?.correo ?? "",
+              apellido: visitaData?.cliente?.apellido ?? "",
+              telefono: visitaData?.cliente?.telefono ?? "",
+              direccion: visitaData?.cliente?.direccion ?? "",
+              creadoEn: visitaData?.cliente?.creadoEn ?? "",
+              actualizadoEn: visitaData?.cliente?.actualizadoEn ?? "",
+              descuentos: visitaData?.cliente?.descuentos ?? [], // Proporciona un arreglo vacío si es undefined
             });
           }
         } catch (error) {
@@ -501,7 +503,9 @@ export default function MakeSale() {
       }
     };
 
-    getRegistOpen();
+    if (tokenUser && tokenUser.sub) {
+      getRegistOpen();
+    }
   }, [tokenUser]);
 
   console.log("El registro abierto es: ", registroAbierto);
