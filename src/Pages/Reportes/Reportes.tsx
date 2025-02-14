@@ -20,6 +20,8 @@ import {
   Target,
   PackagePlus,
   Calendar,
+  CreditCard,
+  UserIcon,
 } from "lucide-react";
 const API_URL = import.meta.env.VITE_API_URL;
 import SelectComponent from "react-select";
@@ -169,6 +171,16 @@ function Reportes() {
     endDate: undefined,
   });
 
+  const [creditosDateRange, setCreditosDateRange] = useState<DateRange>({
+    startDate: undefined,
+    endDate: undefined,
+  });
+
+  const [usuariosDateRange, setUsuariosDateRange] = useState<DateRange>({
+    startDate: undefined,
+    endDate: undefined,
+  });
+
   const [salesMinTotal, setSalesMinTotal] = useState<string>("");
   const [salesMaxTotal, setSalesMaxTotal] = useState<string>(""); // Nuevo estado
 
@@ -202,6 +214,14 @@ function Reportes() {
 
       case "asistencias":
         setAsistenciaDateRange((prev) => ({ ...prev, [field]: date }));
+        break;
+
+      case "creditos":
+        setCreditosDateRange((prev) => ({ ...prev, [field]: date }));
+        break;
+
+      case "usuarios":
+        setUsuariosDateRange((prev) => ({ ...prev, [field]: date }));
         break;
     }
   };
@@ -974,6 +994,82 @@ function Reportes() {
         </ReportCard>
         {/* CONSEGUIR REPORTES DE LAS VENTAS */}
 
+        {/* CONSEGUIR REPORTES DE LOS CLIENTES */}
+        <ReportCard
+          title="Clientes"
+          icon={<Users className="h-6 w-6" />}
+          description="Reporte de clientes con filtros avanzados"
+          dateRange={clientesDateRange}
+          onDateChange={(field, date) =>
+            handleDateChange("clientes", field, date)
+          }
+          onDownload={() =>
+            handleDownload("clientes", clientesDateRange, {
+              minCompras,
+              maxCompras,
+              minGastado,
+              maxGastado,
+              municipio: selectedMunicipio?.value,
+              departamento: selectedDepartamento?.value,
+            })
+          }
+          startDatePlaceholder="Inicio del rango de creación"
+          endDatePlaceholder="Fin del rango de creación"
+        >
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              placeholder="Mínimo de Compras"
+              value={minCompras}
+              onChange={(e) => setMinCompras(e.target.value)}
+            />
+            <Input
+              placeholder="Máximo de Compras"
+              value={maxCompras}
+              onChange={(e) => setMaxCompras(e.target.value)}
+            />
+            <Input
+              placeholder="Monto Mínimo Gastado"
+              value={minGastado}
+              onChange={(e) => setMinGastado(e.target.value)}
+            />
+            <Input
+              placeholder="Monto Máximo Gastado"
+              value={maxGastado}
+              onChange={(e) => setMaxGastado(e.target.value)}
+            />
+
+            <div className="">
+              <label className="text-sm font-medium text-black">
+                Departamento
+              </label>
+              <SelectComponent
+                className="w-full text-black"
+                options={departamentos2} // Opciones de departamentos
+                value={selectedDepartamento}
+                onChange={handleDepartamentoChange}
+                placeholder="Seleccione un Departamento"
+                isClearable
+              />
+            </div>
+
+            <div className="">
+              <label className="text-sm font-medium text-black">
+                Municipio
+              </label>
+              <SelectComponent
+                className="w-full text-black"
+                options={filteredMunicipios} // Opciones de municipios filtradas
+                value={selectedMunicipio}
+                onChange={handleMunicipioChange}
+                placeholder="Seleccione un Municipio"
+                isClearable
+                isDisabled={!selectedDepartamento} // Deshabilitar si no hay departamento seleccionado
+              />
+            </div>
+          </div>
+        </ReportCard>
+        {/* CONSEGUIR REPORTES DE LOS CLIENTES */}
+
         {/* CONSEGUIR REPORTE DE INENTARIO */}
         <ReportCard
           title="Inventario"
@@ -1077,6 +1173,61 @@ function Reportes() {
           </div>
         </ReportCard>
         {/* CONSEGUIR REPORTE DE INENTARIO */}
+
+        {/* CONSEGUIR REPORTES DE REGISTROS DE ENTREGA */}
+        <ReportCard
+          title="Historial de Entregas"
+          icon={<PackagePlus className="h-6 w-6" />} // Icono ideal para entregas
+          description="Reporte de historial de entregas de stock"
+          dateRange={entregasDateRange}
+          onDateChange={(field, date) =>
+            handleDateChange("entregas", field, date)
+          }
+          onDownload={() =>
+            handleDownload("entregas", entregasDateRange, {
+              proveedor: selectedProveedor?.value, // Filtro de proveedor
+            })
+          }
+          startDatePlaceholder="Inicio del rango de creación"
+          endDatePlaceholder="Fin del rango de creación"
+        >
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-black">Proveedor</label>
+            <SelectComponent
+              className="w-full text-black"
+              options={proveedores.map((proveedor) => ({
+                value: proveedor.id,
+                label: proveedor.nombre,
+              }))}
+              value={selectedProveedor}
+              onChange={(selectedOption) =>
+                setSelectedProveedor(selectedOption)
+              }
+              placeholder="Seleccione un proveedor"
+              isClearable
+            />
+          </div>
+        </ReportCard>
+        {/* CONSEGUIR REPORTES DE REGISTROS DE ENTREGA */}
+
+        {/* CONSEGUIR REPORTES DE CREDITOS */}
+        <ReportCard
+          title="Creditos"
+          icon={<CreditCard className="h-6 w-6" />} // Icono ideal para entregas
+          description="Reporte de historial de Asistencias"
+          dateRange={creditosDateRange}
+          onDateChange={(field, date) =>
+            handleDateChange("creditos", field, date)
+          }
+          onDownload={() =>
+            handleDownload("creditos", creditosDateRange, {
+              proveedor: selectedProveedor?.value, // Filtro de proveedor
+            })
+          }
+          startDatePlaceholder="Inicio del rango de creación"
+          endDatePlaceholder="Fin del rango de creación"
+        ></ReportCard>
+        {/* CONSEGUIR REPORTES DE CREDITOS */}
 
         {/* CONSEGUIR REPORTES DE PROSPECTOS */}
         <ReportCard
@@ -1187,118 +1338,6 @@ function Reportes() {
         </ReportCard>
         {/* CONSEGUIR REPORTES DE VISITAS */}
 
-        {/* CONSEGUIR REPORTES DE LOS CLIENTES */}
-        <ReportCard
-          title="Clientes"
-          icon={<Users className="h-6 w-6" />}
-          description="Reporte de clientes con filtros avanzados"
-          dateRange={clientesDateRange}
-          onDateChange={(field, date) =>
-            handleDateChange("clientes", field, date)
-          }
-          onDownload={() =>
-            handleDownload("clientes", clientesDateRange, {
-              minCompras,
-              maxCompras,
-              minGastado,
-              maxGastado,
-              municipio: selectedMunicipio?.value,
-              departamento: selectedDepartamento?.value,
-            })
-          }
-          startDatePlaceholder="Inicio del rango de creación"
-          endDatePlaceholder="Fin del rango de creación"
-        >
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              placeholder="Mínimo de Compras"
-              value={minCompras}
-              onChange={(e) => setMinCompras(e.target.value)}
-            />
-            <Input
-              placeholder="Máximo de Compras"
-              value={maxCompras}
-              onChange={(e) => setMaxCompras(e.target.value)}
-            />
-            <Input
-              placeholder="Monto Mínimo Gastado"
-              value={minGastado}
-              onChange={(e) => setMinGastado(e.target.value)}
-            />
-            <Input
-              placeholder="Monto Máximo Gastado"
-              value={maxGastado}
-              onChange={(e) => setMaxGastado(e.target.value)}
-            />
-
-            <div className="">
-              <label className="text-sm font-medium text-black">
-                Departamento
-              </label>
-              <SelectComponent
-                className="w-full text-black"
-                options={departamentos2} // Opciones de departamentos
-                value={selectedDepartamento}
-                onChange={handleDepartamentoChange}
-                placeholder="Seleccione un Departamento"
-                isClearable
-              />
-            </div>
-
-            <div className="">
-              <label className="text-sm font-medium text-black">
-                Municipio
-              </label>
-              <SelectComponent
-                className="w-full text-black"
-                options={filteredMunicipios} // Opciones de municipios filtradas
-                value={selectedMunicipio}
-                onChange={handleMunicipioChange}
-                placeholder="Seleccione un Municipio"
-                isClearable
-                isDisabled={!selectedDepartamento} // Deshabilitar si no hay departamento seleccionado
-              />
-            </div>
-          </div>
-        </ReportCard>
-        {/* CONSEGUIR REPORTES DE LOS CLIENTES */}
-
-        {/* CONSEGUIR REPORTES DE REGISTROS DE ENTREGA */}
-        <ReportCard
-          title="Historial de Entregas"
-          icon={<PackagePlus className="h-6 w-6" />} // Icono ideal para entregas
-          description="Reporte de historial de entregas de stock"
-          dateRange={entregasDateRange}
-          onDateChange={(field, date) =>
-            handleDateChange("entregas", field, date)
-          }
-          onDownload={() =>
-            handleDownload("entregas", entregasDateRange, {
-              proveedor: selectedProveedor?.value, // Filtro de proveedor
-            })
-          }
-          startDatePlaceholder="Inicio del rango de creación"
-          endDatePlaceholder="Fin del rango de creación"
-        >
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-black">Proveedor</label>
-            <SelectComponent
-              className="w-full text-black"
-              options={proveedores.map((proveedor) => ({
-                value: proveedor.id,
-                label: proveedor.nombre,
-              }))}
-              value={selectedProveedor}
-              onChange={(selectedOption) =>
-                setSelectedProveedor(selectedOption)
-              }
-              placeholder="Seleccione un proveedor"
-              isClearable
-            />
-          </div>
-        </ReportCard>
-        {/* CONSEGUIR REPORTES DE REGISTROS DE ENTREGA */}
-
         {/* CONSEGUIR REPORTE DE ASISTENCIAS */}
         <ReportCard
           title="Asistencias"
@@ -1317,6 +1356,25 @@ function Reportes() {
           endDatePlaceholder="Fin del rango de creación"
         ></ReportCard>
         {/* CONSEGUIR REPORTE DE ASISTENCIAS */}
+
+        {/* CONSEGUIR REPORTES DE USUARIOS */}
+        <ReportCard
+          title="Usuarios"
+          icon={<UserIcon className="h-6 w-6" />} // Icono ideal para entregas
+          description="Reporte de usuarios"
+          dateRange={usuariosDateRange}
+          onDateChange={(field, date) =>
+            handleDateChange("creditos", field, date)
+          }
+          onDownload={() =>
+            handleDownload("usuarios", usuariosDateRange, {
+              proveedor: selectedProveedor?.value, // Filtro de proveedor
+            })
+          }
+          startDatePlaceholder="Inicio del rango de creación"
+          endDatePlaceholder="Fin del rango de creación"
+        ></ReportCard>
+        {/* CONSEGUIR REPORTES DE USUARIOS */}
       </div>
     </div>
   );

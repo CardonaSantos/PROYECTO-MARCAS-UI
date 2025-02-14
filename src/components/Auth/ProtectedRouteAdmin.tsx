@@ -1,46 +1,56 @@
-import { Navigate } from "react-router-dom";
-import { ReactNode, useEffect, useState } from "react";
-import { jwtDecode } from "jwt-decode"; // Asegúrate de importar jwtDecode correctamente
+// import { Navigate } from "react-router-dom";
+// import { ReactNode } from "react";
+// import { useStore } from "@/Context/ContextSucursal";
 
-interface ProtectedRouteProps {
+// interface ProtectedRouteAdminProps {
+//   children: ReactNode;
+// }
+
+// export function ProtectedRouteAdmin({ children }: ProtectedRouteAdminProps) {
+//   const rolUser = useStore((state) => state.userRol); // Obtener el rol correctamente
+
+//   if (rolUser !== "ADMIN") {
+//     return <Navigate to="/dashboard-empleado" />; // Redirigir a empleados si no es admin
+//   }
+
+//   return <>{children}</>;
+// }
+import { Navigate } from "react-router-dom";
+import { ReactNode } from "react";
+import { useStore } from "@/Context/ContextSucursal";
+import { useEffect, useState } from "react";
+import gif from "@/assets/images/loading.gif";
+
+interface ProtectedRouteAdminProps {
   children: ReactNode;
 }
 
-interface UserTokenInfo {
-  nombre: string;
-  correo: string;
-  rol: string;
-  sub: number;
-  activo: boolean;
-}
+export function ProtectedRouteAdmin({ children }: ProtectedRouteAdminProps) {
+  const rolUser = useStore((state) => state.userRol); // Obtener el rol
+  const [isLoading, setIsLoading] = useState(true);
 
-export function ProtectedRouteAdmin({ children }: ProtectedRouteProps) {
-  const [tokenUser, setTokenUser] = useState<UserTokenInfo | null>(null);
-
+  // Simulamos una espera para asegurarnos de que el rol esté disponible
   useEffect(() => {
-    const token = localStorage.getItem("authToken");
-    if (token) {
-      try {
-        const decodedToken = jwtDecode<UserTokenInfo>(token);
-        setTokenUser(decodedToken);
-      } catch (error) {
-        console.error("Error decoding token:", error);
-      }
+    if (rolUser !== undefined) {
+      setIsLoading(false);
     }
-  }, []);
+  }, [rolUser]);
 
-  const isAuth = localStorage.getItem("authToken") !== null;
-
-  // Si no está autenticado, redirigir a login
-  if (!isAuth) {
-    return <Navigate to="/login" />;
+  if (isLoading) {
+    return (
+      // <div className="flex justify-center items-center h-screen">
+      //   Cargando...
+      // </div>
+      <div className="flex flex-col justify-center items-center h-screen gap-2">
+        <img src={gif} alt="Cargando..." className="w-16 h-16 object-contain" />
+        <p className="text-lg font-semibold text-gray-600">Cargando...</p>
+      </div>
+    );
   }
 
-  // Si no es administrador, redirigir al dashboard de empleado
-  if (tokenUser && tokenUser?.rol !== "ADMIN") {
+  if (rolUser !== "ADMIN") {
     return <Navigate to="/dashboard-empleado" />;
   }
 
-  // Si está autenticado y es admin, renderizar el contenido
   return <>{children}</>;
 }

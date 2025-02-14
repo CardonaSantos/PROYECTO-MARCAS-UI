@@ -498,9 +498,11 @@ export default function ProspectoHistorial() {
                         <TableCell>
                           <Badge
                             variant={
-                              prospect.estado === "EN_PROSPECTO"
+                              prospect.estado === "FINALIZADO"
                                 ? "default"
-                                : "destructive"
+                                : prospect.estado === "CERRADO"
+                                ? "destructive"
+                                : "secondary"
                             }
                           >
                             {prospect.estado === "CERRADO"

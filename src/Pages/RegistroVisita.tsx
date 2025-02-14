@@ -20,6 +20,7 @@ import {
   MapPin,
   Phone,
   User,
+  X,
   XCircle,
 } from "lucide-react";
 import {
@@ -207,22 +208,33 @@ export default function RegistroVisita() {
   };
 
   const finalizarVisita = async () => {
-    if (visitaActual) {
-      try {
-        await axios.patch(
-          `${API_URL}/date/update/visit-regist/${visitaActual.id}`,
-          {
-            fin: new Date(),
-            observaciones,
-          }
-        );
+    if (isSubmitting) return; // Evita múltiples clics
 
-        toast.success("Registro de visita finalizado");
-        setTimeout(() => window.location.reload(), 1000);
-      } catch (error) {
-        console.error("Error al finalizar la visita:", error);
-        toast.error("Error al finalizar la visita");
-      }
+    setIsSubmitting(true);
+
+    if (!visitaActual) {
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      await axios.patch(
+        `${API_URL}/date/update/visit-regist/${visitaActual.id}`,
+        {
+          fin: new Date(),
+          observaciones,
+        }
+      );
+
+      toast.success("Registro de visita finalizado");
+
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (error) {
+      console.error("Error al finalizar la visita:", error);
+      toast.error("Error al finalizar la visita");
+    } finally {
+      // Esto asegura que isSubmitting solo se restablezca si NO se recarga la página
+      setTimeout(() => setIsSubmitting(false), 1100);
     }
   };
 
@@ -260,6 +272,9 @@ export default function RegistroVisita() {
       ? `${customer.nombre} ${customer.apellido}`
       : customer.nombre,
   }));
+
+  const [openConfirmFinish, setOpenConfirmFinish] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   return (
     <Card className="w-full max-w-4xl mx-auto shadow-xl">
@@ -425,7 +440,10 @@ export default function RegistroVisita() {
         {visitaActual ? (
           <>
             <Button
-              onClick={finalizarVisita}
+              // onClick={finalizarVisita}
+              onClick={() => {
+                setOpenConfirmFinish(true);
+              }}
               className="bg-green-600 hover:bg-green-700 text-white"
             >
               <CheckCircle className="mr-2 h-4 w-4" />
@@ -447,7 +465,7 @@ export default function RegistroVisita() {
               !nuevaVisita.motivoVisita ||
               !nuevaVisita.tipoVisita
             }
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            className="bg-green-500 text-white hover:bg-green-600"
           >
             <CheckCircle className="mr-2 h-4 w-4" />
             Iniciar Visita
@@ -488,6 +506,72 @@ export default function RegistroVisita() {
               disabled={truncarClose || !observacionesClose.trim()}
             >
               {truncarClose ? "Cancelando..." : "Confirmar Cancelación"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openConfirmFinish} onOpenChange={setOpenConfirmFinish}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-center text-xl font-semibold text-primary">
+              <AlertTriangle className="w-6 h-6 mr-2 text-warning" />
+              Confirmar Finalización de Visita
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-4 text-center">
+            <AlertTriangle className="w-12 h-12 mx-auto text-warning mb-4" />
+            <p className="text-sm text-muted-foreground">
+              ¿Estás seguro de que deseas finalizar esta visita?
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Esta acción no se puede deshacer.
+            </p>
+          </div>
+          <DialogFooter className="mt-6 flex flex-col sm:flex-row gap-3">
+            <Button
+              variant="destructive"
+              onClick={() => setOpenConfirmFinish(false)}
+              className="w-full "
+            >
+              <X className="w-4 h-4 mr-2" />
+              Cancelar
+            </Button>
+            <Button
+              onClick={finalizarVisita}
+              disabled={isSubmitting}
+              className="w-full  bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              {isSubmitting ? (
+                <span className="flex items-center justify-center">
+                  <svg
+                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Finalizando...
+                </span>
+              ) : (
+                <>
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  Finalizar Visita
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

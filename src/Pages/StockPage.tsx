@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import {
+  AlertTriangle,
+  CheckCircle,
   Coins,
   Info,
   Loader2,
@@ -21,7 +23,6 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogTrigger,
   DialogContent,
   DialogHeader,
   DialogFooter,
@@ -55,6 +56,13 @@ import {
 } from "@/components/ui/tooltip";
 const API_URL = import.meta.env.VITE_API_URL;
 
+interface Imagen {
+  id: number;
+  url: string;
+  productoId: number;
+  creadoEn: string;
+}
+
 // Tipos actualizados
 interface Stock {
   id: number;
@@ -87,6 +95,7 @@ interface Producto {
   codigoProducto: string;
   stock: Stock | null;
   categorias: Category[];
+  imagenes: Imagen[]; // Nueva propiedad
 }
 
 interface StockItem {
@@ -145,21 +154,61 @@ export default function StockPage() {
     }
   };
 
+  const [openConfirStock, setOpenConfirmStock] = useState(false);
+
   const handleConfirmStock = async () => {
+    if (stockItems.length <= 0) {
+      toast.info("Seleccione los productos a añadir stock");
+      return;
+    }
+
+    if (stockItems.some((prod) => prod.cantidad <= 0)) {
+      toast.warning("La cantidad del stock no puede ser negativa");
+      return;
+    }
+
+    if (stockItems.some((prod) => prod.costoUnitario <= 0)) {
+      toast.info("El precio costo no debería ser negativo");
+      return;
+    }
+
     setIsLoading(true);
+
+    // Retrasamos la resolución del toast por al menos 1 segundo
+    const delay = 1000; // 1000ms = 1 segundo
+
     try {
-      const response = await axios.post(`${API_URL}/stock`, {
-        proveedorId: selectedProvider,
-        productos: stockItems,
-      });
-      if (response.status === 201) {
-        toast.success("Stock confirmado y enviado al inventario.");
-        setStockItems([]);
-        getProducts();
-      }
+      await toast.promise(
+        new Promise(async (resolve, reject) => {
+          try {
+            // Hacemos la petición y luego resolvemos después del retraso
+            const response = await axios.post(`${API_URL}/stock`, {
+              proveedorId: selectedProvider,
+              productos: stockItems,
+            });
+            setTimeout(() => {
+              // Esperamos al menos `delay` tiempo antes de continuar
+              resolve(response);
+            }, delay);
+          } catch (error) {
+            setTimeout(() => {
+              reject(error);
+            }, delay);
+          }
+        }),
+        {
+          loading: "Enviando stock...",
+          success: "Stock confirmado y enviado al inventario.",
+          error: "Error al enviar stock",
+        }
+      );
+
+      // Si la promesa es exitosa, se maneja después
+      setStockItems([]);
+      getProducts();
+      setOpenConfirmStock(false);
     } catch (error) {
       console.error(error);
-      toast.error("Error al enviar stock");
     } finally {
       setIsLoading(false);
     }
@@ -176,7 +225,7 @@ export default function StockPage() {
     try {
       const response = await axios.get(`${API_URL}/product`);
       if (response.status === 200) {
-        setProducts(response.data);
+        setProducts(response.data.products);
       }
     } catch (error) {
       console.error(error);
@@ -208,6 +257,11 @@ export default function StockPage() {
       prevItems.filter((item) => item.productoId !== productoId)
     );
     toast.success("Producto eliminado de la lista de stock.");
+  };
+
+  console.log("Los productos son: ", products);
+  const enLista = (productoId: number): boolean => {
+    return stockItems.some((producto) => producto.productoId === productoId);
   };
 
   return (
@@ -261,6 +315,12 @@ export default function StockPage() {
                       <p className="text-sm text-muted-foreground">
                         Código: {product.codigoProducto}
                       </p>
+
+                      {enLista(product.id) ? (
+                        <span className="text-green-600 font-bold">
+                          En lista
+                        </span>
+                      ) : null}
                     </li>
                   ))}
                 </ul>
@@ -433,6 +493,31 @@ export default function StockPage() {
                     <p>Nuevo costo de producto: Q{unitCost}</p>
                   </div>
                 )}
+
+                {selectedProduct.imagenes.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+                    {selectedProduct.imagenes.map((image, index) => (
+                      <Card
+                        key={index}
+                        className="overflow-hidden bg-white dark:bg-gray-800 transition-shadow duration-300 hover:shadow-lg"
+                      >
+                        <CardContent className="p-0">
+                          <div className="aspect-square relative">
+                            <img
+                              src={image.url || "/placeholder.svg"}
+                              alt={`Imagen recortada ${index + 1}`}
+                              className="w-full h-full object-cover rounded-t-lg"
+                            />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <div>
+                    <h2>No hay imagenes</h2>
+                  </div>
+                )}
               </div>
             ) : (
               <p>Selecciona un producto para ver los detalles</p>
@@ -516,33 +601,70 @@ export default function StockPage() {
                   .toFixed(2)}
               </p>
             </div>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button>Confirmar Inventario</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle className="text-center">
-                    Confirmar Inventario
-                  </DialogTitle>
-                  <DialogDescription className="text-center">
-                    ¿Estás seguro de que deseas confirmar y enviar este
-                    inventario con esta información?
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter className="sm:justify-center">
-                  <Button onClick={handleConfirmStock} disabled={isLoading}>
-                    {isLoading ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : null}
-                    Confirmar
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
           </CardFooter>
         </Card>
       )}
+
+      <Dialog onOpenChange={setOpenConfirmStock} open={openConfirStock}>
+        <Button
+          onClick={() => {
+            setOpenConfirmStock(true);
+          }}
+          className="bg-primary hover:bg-primary/90 text-primary-foreground"
+        >
+          Confirmar Inventario
+        </Button>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-center text-xl font-semibold text-primary">
+              <AlertTriangle className="w-6 h-6 mr-2 text-warning" />
+              Confirmar Inventario
+            </DialogTitle>
+            <DialogDescription className="text-center pt-2 text-muted-foreground">
+              ¿Estás seguro de que deseas confirmar y enviar este inventario con
+              esta información?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 text-center">
+            <AlertTriangle className="w-12 h-12 mx-auto text-warning mb-4" />
+            <p className="text-sm text-muted-foreground">
+              Esta acción finalizará el proceso de inventario actual.
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Asegúrate de haber revisado toda la información antes de
+              confirmar.
+            </p>
+          </div>
+          <DialogFooter className="mt-6 flex flex-col sm:flex-row gap-3">
+            <Button
+              onClick={() => {
+                setOpenConfirmStock(false);
+              }}
+              variant="destructive"
+              className="w-full"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleConfirmStock}
+              disabled={isLoading}
+              className="w-full  bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              {isLoading ? (
+                <span className="flex items-center justify-center">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Procesando...
+                </span>
+              ) : (
+                <>
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  Confirmar
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

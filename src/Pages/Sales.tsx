@@ -34,6 +34,7 @@ import {
   FileSpreadsheet,
   Package,
   Search,
+  Trash,
   User,
 } from "lucide-react";
 import axios from "axios";
@@ -501,24 +502,48 @@ function Sales() {
                                           </p>
                                         </div>
                                         <div>
-                                          <h4 className="font-medium text-sm">
-                                            Total monto
-                                          </h4>
-                                          <p className="text-sm">
-                                            {selectedVenta.monto
-                                              ? `Q${selectedVenta.monto}`
-                                              : "No se aplicó"}
-                                          </p>
+                                          {selectedVenta.metodoPago ===
+                                          "CREDITO" ? (
+                                            <>
+                                              <h4 className="font-medium text-sm ">
+                                                Total monto
+                                                <span className="text-green-500 ml-1">
+                                                  (PAGADO)
+                                                </span>
+                                              </h4>
+                                              <p className="text-sm">
+                                                {selectedVenta.monto
+                                                  ? `Q${selectedVenta.monto}`
+                                                  : "No se aplicó"}
+                                              </p>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <h4 className="font-medium text-sm">
+                                                Total monto
+                                              </h4>
+                                              <p className="text-sm">
+                                                {selectedVenta.monto
+                                                  ? `Q${selectedVenta.monto}`
+                                                  : "No se aplicó"}
+                                              </p>
+                                            </>
+                                          )}
                                         </div>
                                         <div>
-                                          <h4 className="font-medium text-sm">
-                                            Total monto con descuento
-                                          </h4>
-                                          <p className="text-sm">
-                                            {selectedVenta.montoConDescuento
-                                              ? `Q${selectedVenta.montoConDescuento}`
-                                              : "No se aplicó"}
-                                          </p>
+                                          {selectedVenta.metodoPago ===
+                                          "CREDITO" ? null : (
+                                            <>
+                                              <h4 className="font-medium text-sm">
+                                                Total monto con descuento
+                                              </h4>
+                                              <p className="text-sm">
+                                                {selectedVenta.montoConDescuento
+                                                  ? `Q${selectedVenta.montoConDescuento}`
+                                                  : "No se aplicó"}
+                                              </p>
+                                            </>
+                                          )}
                                         </div>
                                       </div>
                                     </CardContent>
@@ -603,63 +628,69 @@ function Sales() {
                         </TableCell>
                         {/* ABRIR EL DIALOG DE BORRADO */}
                         <TableCell className="text-center">
-                          <Dialog
-                            open={isDialogOpen}
-                            onOpenChange={setIsDialogOpen}
-                          >
-                            <DialogTrigger asChild>
-                              <Button
-                                variant="outline"
-                                onClick={() => openDeleteDialog(venta.id)}
-                              >
-                                Eliminar
-                              </Button>
-                            </DialogTrigger>
-                            {selectedVentaId === venta.id && (
-                              <DialogContent className="sm:max-w-[400px]">
-                                <DialogHeader>
-                                  <DialogTitle>Eliminar Venta</DialogTitle>
-                                  <DialogDescription>
-                                    Ingresa la contraseña del administrador para
-                                    confirmar
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="space-y-4">
-                                  <Input
-                                    type="password"
-                                    placeholder="Contraseña del administrador"
-                                    value={adminPassword}
-                                    onChange={(e) =>
-                                      setAdminPassword(e.target.value)
-                                    }
-                                    className="w-full"
-                                  />
-                                  {deleteError && (
-                                    <p className="text-red-500 text-sm">
-                                      {deleteError}
-                                    </p>
-                                  )}
-                                  <div className="flex justify-end space-x-2">
-                                    <Button
-                                      variant="ghost"
-                                      onClick={closeDeleteDialog}
-                                    >
-                                      Cancelar
-                                    </Button>
-                                    <Button
-                                      variant="destructive"
-                                      onClick={handleDeleteVenta}
-                                      disabled={isDeleting}
-                                    >
-                                      {isDeleting
-                                        ? "Eliminando..."
-                                        : "Confirmar"}
-                                    </Button>
+                          {venta.metodoPago !== "CREDITO" ? (
+                            <Dialog
+                              open={isDialogOpen}
+                              onOpenChange={setIsDialogOpen}
+                            >
+                              <DialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  onClick={() => openDeleteDialog(venta.id)}
+                                >
+                                  <Trash />
+                                </Button>
+                              </DialogTrigger>
+                              {selectedVentaId === venta.id && (
+                                <DialogContent className="sm:max-w-[400px]">
+                                  <DialogHeader>
+                                    <DialogTitle>Eliminar Venta</DialogTitle>
+                                    <DialogDescription>
+                                      Ingresa la contraseña del administrador
+                                      para confirmar
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="space-y-4">
+                                    <Input
+                                      type="password"
+                                      placeholder="Contraseña del administrador"
+                                      value={adminPassword}
+                                      onChange={(e) =>
+                                        setAdminPassword(e.target.value)
+                                      }
+                                      className="w-full"
+                                    />
+                                    {deleteError && (
+                                      <p className="text-red-500 text-sm">
+                                        {deleteError}
+                                      </p>
+                                    )}
+                                    <div className="flex justify-end space-x-2">
+                                      <Button
+                                        variant="ghost"
+                                        onClick={closeDeleteDialog}
+                                      >
+                                        Cancelar
+                                      </Button>
+                                      <Button
+                                        variant="destructive"
+                                        onClick={handleDeleteVenta}
+                                        disabled={isDeleting}
+                                      >
+                                        {isDeleting
+                                          ? "Eliminando..."
+                                          : "Confirmar"}
+                                      </Button>
+                                    </div>
                                   </div>
-                                </div>
-                              </DialogContent>
-                            )}
-                          </Dialog>
+                                </DialogContent>
+                              )}
+                            </Dialog>
+                          ) : (
+                            <Button variant="outline" disabled={true}>
+                              <Trash />
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}

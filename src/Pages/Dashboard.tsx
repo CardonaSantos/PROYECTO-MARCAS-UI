@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+
 import {
-  AlertCircle,
+  // AlertCircle,
   AlertTriangle,
+  Calendar,
   Check,
   Coins,
   ThumbsDown,
+  TrendingUp,
   User2Icon,
+  Users,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -75,6 +80,7 @@ import dayjs from "dayjs";
 import "dayjs/locale/es";
 import utc from "dayjs/plugin/utc";
 import localizedFormat from "dayjs/plugin/localizedFormat";
+// import { MotionConfig } from "framer-motion";
 
 dayjs.extend(utc);
 dayjs.extend(localizedFormat);
@@ -380,6 +386,10 @@ export default function Dashboard() {
   console.log("Los usuarios conectados son: ", connectedUsers);
 
   // Componente principal
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 },
+  };
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -397,310 +407,323 @@ export default function Dashboard() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Dashboard Overview */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="shadow-xl">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Ingresos del Mes
-              </CardTitle>
-              <Coins className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                Q
-                {montoMes.toLocaleString("en-US", {
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0,
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-xl">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Ventas de la semana
-              </CardTitle>
-              <Coins className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                Q
-                {montoSemana.toLocaleString("en-US", {
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0,
-                })}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-xl">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Ventas del día
-              </CardTitle>
-              <Coins className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                Q
-                {montoDia.toLocaleString("en-US", {
-                  minimumFractionDigits: 0,
-                  maximumFractionDigits: 0,
-                })}
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="shadow-xl">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">
-                Empleados activos
-              </CardTitle>
-              <User2Icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {
-                  connectedUsers === null || connectedUsers === undefined
-                    ? "Cargando..." // Mientras se obtienen los datos
-                    : connectedUsers.totalConnectedUsers
-                    ? connectedUsers.totalConnectedUsers // Mostrar el número cuando existan datos
-                    : "Cargando..." // Mostrar este mensaje solo cuando se determine que no tiene permisos
-                }
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-xl">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Clientes</CardTitle>
-              <User2Icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">
-                {cantidadClientes ? cantidadClientes : "Cargando..."}
-              </div>
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+          {[
+            {
+              title: "Ingresos del Mes",
+              value: `Q${montoMes.toLocaleString("en-US", {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+              })}`,
+              icon: <Coins className="h-5 w-5 text-green-500" />,
+            },
+            {
+              title: "Ventas de la semana",
+              value: `Q${montoSemana.toLocaleString("en-US", {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+              })}`,
+              icon: <TrendingUp className="h-5 w-5 text-blue-500" />,
+            },
+            {
+              title: "Ventas del día",
+              value: `Q${montoDia.toLocaleString("en-US", {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0,
+              })}`,
+              icon: <Calendar className="h-5 w-5 text-purple-500" />,
+            },
+            {
+              title: "Empleados activos",
+              value: connectedUsers?.totalConnectedUsers ?? "Cargando...",
+              icon: <User2Icon className="h-5 w-5 text-orange-500" />,
+            },
+            {
+              title: "Clientes",
+              value: cantidadClientes ?? "Cargando...",
+              icon: <Users className="h-5 w-5 text-pink-500" />,
+            },
+          ].map((card, index) => (
+            <motion.div
+              key={index}
+              variants={cardVariants}
+              initial="hidden"
+              animate="visible"
+              transition={{ duration: 0.3, delay: index * 0.1 }}
+              className="h-full"
+            >
+              <Card className="shadow-xl hover:shadow-2xl transition-all duration-300 bg-white dark:bg-gray-900 h-full flex flex-col p-4 rounded-lg">
+                <CardHeader className="flex items-center justify-between pb-2 border-b border-gray-200 dark:border-gray-700">
+                  <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                    {card.title}
+                  </CardTitle>
+                  {card.icon}
+                </CardHeader>
+                <CardContent className="flex-grow flex items-center justify-center">
+                  <div className="text-3xl font-bold text-gray-900 dark:text-white">
+                    {card.value}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
         </div>
 
         {/* Discount Requests Section */}
-        <Card className="mt-8 shadow-xl">
-          <CardHeader>
-            <CardTitle>Solicitudes de Descuento</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Vendedor</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Descuento solicitado</TableHead>
-                  <TableHead>Justificacion</TableHead>
-
-                  <TableHead>Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {discountRequests && discountRequests.length > 0 ? (
-                  discountRequests.map((request) => (
-                    <TableRow key={request.id}>
-                      <TableCell>{request.vendedor.nombre}</TableCell>
-                      <TableCell>{request.cliente.nombre}</TableCell>
-                      <TableCell>{request.porcentaje}%</TableCell>
-                      <TableCell>
-                        {request.justificacion
-                          ? request.justificacion
-                          : "Sin añadir"}
-                      </TableCell>
-
-                      <TableCell className="flex gap-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="mr-2"
-                          onClick={() => {
-                            setSelectedRequestId(Number(request.id)); // Actualizar el ID de la solicitud seleccionada
-                            setPorcentaje(request.porcentaje);
-                            setClienteId(request.cliente.id);
-                            setVendedorId(request.vendedor.id);
-                            setShowAcept(true); // Abrir el diálogo de aceptación
-                          }}
-                        >
-                          Aprobar
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedRequestId(Number(request.id)); // Actualizar el ID de la solicitud seleccionada
-                            setVendedorId(request.vendedor.id);
-                            setShowReject(true); // Abrir el diálogo de rechazo
-                          }}
-                        >
-                          Rechazar
-                        </Button>
+        <motion.div
+          variants={cardVariants}
+          initial="hidden"
+          animate="visible"
+          transition={{ duration: 0.3, delay: 0.5 }} // Ajusta el delay según el orden del card
+        >
+          <Card className="mt-8 shadow-xl">
+            <CardHeader>
+              <CardTitle>Solicitudes de Descuento</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Vendedor</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Descuento solicitado</TableHead>
+                    <TableHead>Justificación</TableHead>
+                    <TableHead>Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {discountRequests && discountRequests.length > 0 ? (
+                    discountRequests.map((request) => (
+                      <TableRow key={request.id}>
+                        <TableCell>{request.vendedor.nombre}</TableCell>
+                        <TableCell>{request.cliente.nombre}</TableCell>
+                        <TableCell>{request.porcentaje}%</TableCell>
+                        <TableCell className="max-w-xs truncate whitespace-normal break-words">
+                          {request.justificacion
+                            ? request.justificacion
+                            : "Sin añadir"}
+                        </TableCell>
+                        <TableCell className="flex gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="mr-2"
+                            onClick={() => {
+                              setSelectedRequestId(Number(request.id));
+                              setPorcentaje(request.porcentaje);
+                              setClienteId(request.cliente.id);
+                              setVendedorId(request.vendedor.id);
+                              setShowAcept(true);
+                            }}
+                          >
+                            Aprobar
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedRequestId(Number(request.id));
+                              setVendedorId(request.vendedor.id);
+                              setShowReject(true);
+                            }}
+                          >
+                            Rechazar
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center font-bold">
+                        No hay solicitudes de descuento
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={4}>
-                      <h2 className="text-center font-bold justify-center items-center"></h2>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </motion.div>
+
         {/* DIALOG PARA ACEPTAR */}
         <Dialog open={showAcept} onOpenChange={setShowAcept}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
-                <AlertCircle className="h-6 w-6 text-yellow-500" />
-                Confirmar acción
-              </DialogTitle>
-              <DialogDescription className="text-base">
-                Se creará una instancia nueva de descuento para este cliente.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex flex-col items-center space-y-4 py-4">
-              <p className="text-lg font-bold text-center">¿Desea continuar?</p>
-              <div className="flex flex-col sm:flex-row gap-3 w-full justify-center">
-                <Button
-                  variant="destructive"
-                  onClick={() => setShowAcept(false)}
-                  type="button"
-                  className="w-full sm:w-auto"
-                >
-                  <X className="mr-2 h-4 w-4" /> Cancelar
-                </Button>
+          <DialogContent className="sm:max-w-md md:max-w-lg lg:max-w-xl">
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-3 text-2xl font-bold text-primary justify-center text-center">
+                  <AlertTriangle className="h-8 w-8 text-yellow-500" />
+                  Confirmar acción
+                </DialogTitle>
+                <DialogDescription className="text-lg text-muted-foreground mt-2 text-center">
+                  Se creará una instancia nueva de descuento para este cliente.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col items-center space-y-6 py-6">
+                <p className="text-xl font-semibold text-center text-secondary-foreground">
+                  ¿Desea continuar?
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
+                  <Button
+                    variant="destructive"
+                    onClick={() => setShowAcept(false)}
+                    type="button"
+                    className="w-full text-base font-medium transition-all duration-200 hover:bg-destructive hover:text-destructive-foreground"
+                  >
+                    <X className="mr-2 h-5 w-5" /> Cancelar
+                  </Button>
 
-                <Button
-                  onClick={createDiscountFromRequest}
-                  type="button"
-                  className="w-full sm:w-auto"
-                >
-                  <Check className="mr-2 h-4 w-4" /> Aceptar
-                </Button>
+                  <Button
+                    onClick={createDiscountFromRequest}
+                    type="button"
+                    className="w-full text-base font-medium bg-primary text-primary-foreground transition-all duration-200 hover:bg-primary/90"
+                  >
+                    <Check className="mr-2 h-5 w-5" /> Aceptar
+                  </Button>
+                </div>
               </div>
-            </div>
+            </motion.div>
           </DialogContent>
         </Dialog>
 
         {/* DIALOG PARA RECHAZAR */}
         <Dialog open={showReject} onOpenChange={setShowReject}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
-                <AlertTriangle className="h-6 w-6 text-red-500" />
-                Rechazar Solicitud de Descuento
-              </DialogTitle>
-              <DialogDescription className="text-base">
-                Esta acción no se puede deshacer. Por favor, confirme su
-                decisión.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex flex-col items-center space-y-4 py-4">
-              <p className="text-lg font-bold text-center">
-                ¿Estás seguro de que deseas rechazar esta solicitud?
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 w-full justify-center">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowReject(false)}
-                  type="button"
-                  className="w-full sm:w-auto"
-                >
-                  <X className="mr-2 h-4 w-4" /> Cancelar
-                </Button>
+          <DialogContent className="sm:max-w-md md:max-w-lg lg:max-w-xl">
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <DialogHeader className="text-center">
+                <DialogTitle className="flex items-center justify-center gap-3 text-2xl font-bold text-primary mb-4">
+                  <AlertTriangle className="h-8 w-8 text-red-500" />
+                  <span>Rechazar Solicitud de Descuento</span>
+                </DialogTitle>
+                <DialogDescription className="text-lg text-muted-foreground mt-2">
+                  Esta acción no se puede deshacer. Por favor, confirme su
+                  decisión.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col items-center space-y-6 py-6">
+                <p className="text-xl font-semibold text-center text-secondary-foreground px-4">
+                  ¿Estás seguro de que deseas rechazar esta solicitud?
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 w-full justify-center">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowReject(false)}
+                    type="button"
+                    className="w-full text-base font-medium transition-all duration-200 hover:bg-secondary hover:text-secondary-foreground"
+                  >
+                    <X className="mr-2 h-5 w-5" /> Cancelar
+                  </Button>
 
-                <Button
-                  onClick={rejectDiscountRequest}
-                  type="button"
-                  variant="destructive"
-                  className="w-full sm:w-auto"
-                >
-                  <ThumbsDown className="mr-2 h-4 w-4" /> Rechazar
-                </Button>
+                  <Button
+                    onClick={rejectDiscountRequest}
+                    type="button"
+                    variant="destructive"
+                    className="w-full  text-base font-medium transition-all duration-200 hover:bg-destructive/90"
+                  >
+                    <ThumbsDown className="mr-2 h-5 w-5" /> Rechazar
+                  </Button>
+                </div>
               </div>
-            </div>
+            </motion.div>
           </DialogContent>
         </Dialog>
 
         {/* Sales Section */}
-        <Card className="mt-8 shadow-xl">
-          <CardHeader>
-            <CardTitle>Transacciones recientes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Vendedor</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Cantidad</TableHead>
-                  <TableHead>Monto</TableHead>
-                  <TableHead>Fecha</TableHead>
-                  <TableHead>Descuento</TableHead>
-                  <TableHead>Metodo Pago</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {lastSales &&
-                  lastSales.map((sale) => (
-                    <TableRow key={sale.id}>
-                      <TableCell>{sale.vendedor.nombre}</TableCell>
+        <motion.div
+          variants={cardVariants}
+          initial="hidden"
+          animate="visible"
+          transition={{ duration: 0.3, delay: 0.5 }} // Ajusta el delay según el orden del card
+        >
+          <Card className="mt-8 shadow-xl">
+            <CardHeader>
+              <CardTitle>Transacciones recientes</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Vendedor</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Cantidad</TableHead>
+                    <TableHead>Monto</TableHead>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Descuento</TableHead>
+                    <TableHead>Metodo Pago</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {lastSales &&
+                    lastSales.map((sale) => (
+                      <TableRow key={sale.id}>
+                        <TableCell>{sale.vendedor.nombre}</TableCell>
 
-                      <TableCell>{sale.cliente.nombre}</TableCell>
-                      <TableCell>
-                        {sale.productos.reduce(
-                          (total, prod) => total + prod.cantidad,
-                          0
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        Q
-                        {sale.montoConDescuento
-                          ? sale.montoConDescuento
-                          : sale.monto}
-                      </TableCell>
-                      <TableCell>{formatearFecha(sale.timestamp)}</TableCell>
-                      <TableCell>
-                        {sale.descuento ? sale.descuento + "%" : "No aplicado"}
-                      </TableCell>
-                      <TableCell
-                        className={`${
-                          sale.metodoPago === "CREDITO"
-                            ? "text-red-500"
-                            : "text-black dark:text-white"
-                        }`}
-                      >
-                        {sale.metodoPago}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        <TableCell>{sale.cliente.nombre}</TableCell>
+                        <TableCell>
+                          {sale.productos.reduce(
+                            (total, prod) => total + prod.cantidad,
+                            0
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          Q
+                          {sale.montoConDescuento
+                            ? sale.montoConDescuento
+                            : sale.monto}
+                        </TableCell>
+                        <TableCell>{formatearFecha(sale.timestamp)}</TableCell>
+                        <TableCell>
+                          {sale.descuento
+                            ? sale.descuento + "%"
+                            : "No aplicado"}
+                        </TableCell>
+                        <TableCell
+                          className={`${
+                            sale.metodoPago === "CREDITO"
+                              ? "text-red-500"
+                              : "text-black dark:text-white"
+                          }`}
+                        >
+                          {sale.metodoPago}
+                        </TableCell>
+                      </TableRow>
+                    ))}
 
-                {/* Add more rows as needed */}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                  {/* Add more rows as needed */}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </motion.div>
+
         {/* Sales general per month */}
-        <Card className="mt-8 shadow-xl h-full">
-          <CardHeader>
-            <CardTitle>General</CardTitle>
-          </CardHeader>
-          <CardContent className="h-full flex items-center justify-center">
-            <Line
-              className="w-full h-full"
-              data={dataChart}
-              options={options}
-            />
-          </CardContent>
-        </Card>
+        <motion.div
+          variants={cardVariants}
+          initial="hidden"
+          animate="visible"
+          transition={{ duration: 0.3, delay: 0.5 }} // Ajusta el delay según el orden del card
+        >
+          <Card className="mt-8 shadow-xl h-full">
+            <CardHeader>
+              <CardTitle>General</CardTitle>
+            </CardHeader>
+            <CardContent className="h-full flex items-center justify-center">
+              <Line
+                className="w-full h-full"
+                data={dataChart}
+                options={options}
+              />
+            </CardContent>
+          </Card>
+        </motion.div>
+
         {/* VENTAS POR CATEGORÍA */}
 
         {/* MOSTRAR LOS REGISTROS DE CREDITOS */}

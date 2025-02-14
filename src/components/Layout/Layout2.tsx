@@ -195,6 +195,7 @@ export default function Layout2({ children }: LayoutProps) {
       }
 
       setNotifications((prev) => [...prev, newNotification]);
+      toast.message(newNotification.mensaje);
 
       if (Notification.permission !== "granted") {
         Notification.requestPermission();

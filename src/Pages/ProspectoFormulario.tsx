@@ -44,7 +44,9 @@ import {
   ShoppingBag,
   User,
   UserCircle,
+  X,
 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 //-------------
 // Interfaz para Prospecto
 interface Prospecto {
@@ -525,19 +527,83 @@ export default function ProspectoFormulario() {
 
   const [openFinishProspecto, setOpenFinishProspecto] = useState(false);
   // const []
+  //==================================================>
+  const [progress, setProgress] = useState(0);
+
+  const requiredFields = [
+    "nombreCompleto",
+    "apellido",
+    "direccion",
+    "departamentoId",
+    "municipioId",
+    "empresaTienda",
+    "telefono",
+    "tipoCliente",
+    "categoriasInteres",
+    "volumenCompra",
+    "presupuestoMensual",
+    "preferenciaContacto",
+    "comentarios",
+    // "latitud",
+    // "longitud",
+  ];
+
+  useEffect(() => {
+    const filledRequiredFields = requiredFields.filter((field) => {
+      const value = formData[field as keyof FormData];
+      if (Array.isArray(value)) {
+        return value.length > 0; // Solo cuenta si tiene elementos
+      }
+      return value !== null && value !== undefined && value !== "";
+    }).length;
+
+    // Progreso solo basado en los campos requeridos (escala de 0 a 100)
+    const totalProgress = (filledRequiredFields / requiredFields.length) * 100;
+
+    setProgress(Math.round(totalProgress));
+  }, [formData]);
+
+  const getProgressColor = () => {
+    if (progress < 50) return "bg-red-500";
+    if (progress < 80) return "bg-yellow-500";
+    return "bg-green-500";
+  };
+
+  const isFormComplete = progress === 100;
+
   return (
     <div className="container mx-auto px-4 py-8">
       {prospectBoolean ? (
         <Card className="w-full max-w-4xl mx-auto shadow-xl">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold">
+            <CardTitle className="text-2xl font-bold text-center">
               Registro de Nuevo Prospecto
             </CardTitle>
+
+            <div className="mt-4">
+              <Progress
+                value={progress}
+                className={`w-full h-2 ${getProgressColor()}`}
+              />
+              <p className="text-sm text-center mt-2">
+                {isFormComplete ? (
+                  <span
+                    className="
+                    text-sm text-center mt-2 text-green-500 font-bold
+                    "
+                  >
+                    Formulario completo
+                  </span>
+                ) : (
+                  `Progreso: ${progress}%`
+                )}
+              </p>
+            </div>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleFinishProspect} className="space-y-8">
               <fieldset className="space-y-6">
-                <legend className="text-xl font-semibold text-primary">
+                <legend className="text-xl font-semibold text-primary text-center">
                   Información General
                 </legend>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -646,6 +712,7 @@ export default function ProspectoFormulario() {
                       onChange={handleInputChange}
                       aria-invalid={errors.correo ? "true" : "false"}
                       className="w-full"
+                      placeholder="Opcional"
                     />
                     {errors.correo && (
                       <p className="text-destructive text-sm" role="alert">
@@ -936,6 +1003,7 @@ export default function ProspectoFormulario() {
                   <Input
                     id="nombreCompleto"
                     name="nombreCompleto"
+                    placeholder="Ingrese sus nombres"
                     value={formData.nombreCompleto}
                     onChange={handleInputChange}
                     aria-required="true"
@@ -963,6 +1031,7 @@ export default function ProspectoFormulario() {
                     onChange={handleInputChange}
                     aria-required="true"
                     aria-invalid={errors.apellido ? "true" : "false"}
+                    placeholder="Ingrese sus apellidos"
                   />
                   {errors.apellido && (
                     <p className="text-red-500 text-sm" role="alert">
@@ -984,6 +1053,7 @@ export default function ProspectoFormulario() {
                     name="empresaTienda"
                     value={formData.empresaTienda}
                     onChange={handleInputChange}
+                    placeholder="Ingrese el nombre de su empresa o tienda"
                   />
                 </div>
                 <div className="space-y-2">
@@ -1001,6 +1071,7 @@ export default function ProspectoFormulario() {
                     onChange={handleInputChange}
                     aria-required="true"
                     aria-invalid={errors.direccion ? "true" : "false"}
+                    placeholder="Ingrese su dirección completa"
                   />
                   {errors.direccion && (
                     <p className="text-red-500 text-sm" role="alert">
@@ -1092,33 +1163,70 @@ export default function ProspectoFormulario() {
 
       {/* Dialogo de confirmación al inciar prospecto */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
-            <DialogTitle className="text-center">
+            <DialogTitle className="flex items-center justify-center text-xl font-semibold text-primary">
+              <AlertTriangle className="w-6 h-6 mr-2 text-warning" />
               Confirmar Registro de Prospecto
             </DialogTitle>
           </DialogHeader>
-          <p className="text-center">
-            ¿Está seguro de que desea iniciar este prospecto con la información
-            ingresada?
-          </p>
-          <DialogFooter className="flex gap-2 justify-center items-center">
+          <div className="mt-4 text-center">
+            <AlertTriangle className="w-12 h-12 mx-auto text-warning mb-4" />
+            <p className="text-sm text-muted-foreground">
+              ¿Está seguro de que desea iniciar este prospecto con la
+              información ingresada?
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Revise cuidadosamente la información antes de confirmar.
+            </p>
+          </div>
+          <DialogFooter className="mt-6 flex flex-col sm:flex-row gap-3">
             <Button
-              className="w-full"
               variant="destructive"
               onClick={() => setOpen(false)}
+              className="w-full "
             >
+              <X className="w-4 h-4 mr-2" />
               Cancelar
             </Button>
             <Button
-              className="w-full"
               onClick={async () => {
                 await postProspecto();
                 setOpen(false);
               }}
               disabled={isSubmitting}
+              className="w-full  bg-primary hover:bg-primary/90 text-primary-foreground"
             >
-              Confirmar
+              {isSubmitting ? (
+                <span className="flex items-center justify-center">
+                  <svg
+                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Procesando...
+                </span>
+              ) : (
+                <>
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  Confirmar
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

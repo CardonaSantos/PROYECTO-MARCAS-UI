@@ -185,7 +185,7 @@ export default function VisitasTable() {
               className="pl-10 bg-gray-50 dark:bg-gray-700"
               value={filtroVisita}
               onChange={(e) => setVisitaFiltro(e.target.value)}
-              placeholder="Buscar por nombre, teléfono, dirección, número de visita"
+              placeholder="Buscar por nombre, teléfono, dirección..."
               aria-label="Buscar visitas"
             />
           </div>

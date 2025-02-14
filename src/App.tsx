@@ -28,7 +28,7 @@ import ProspectoFormulario from "./Pages/ProspectoFormulario";
 import ProspectoHistorial from "./Pages/ProspectoHistorial";
 import ProspectoUbicacion from "./Pages/MapProspect/ProspectoUbicacion";
 import PdfPage from "./components/PDF/PdfPage";
-import DeliveryPdfPage from "./components/PDF/DeliveryPdfPage";
+// import DeliveryPdfPage from "./components/PDF/DeliveryPdfPage";
 import EditCustomer from "./Pages/Tools/EditCustomer";
 import { ProtectedRoute } from "./components/Auth/ProtectedRoute";
 import DashboardEmp from "./Pages/DashboardEmployee/DashboardEmp";
@@ -42,7 +42,6 @@ import VentaPdfPage from "./components/PDF/VentasPDF/VentaPdfPage";
 import EmpresaForm from "./Pages/Empresa/EmpresaForm";
 import ChatsAnalytics from "./Pages/Analytics/ChatsAnalytics";
 import Reportes from "./Pages/Reportes/Reportes";
-import SolicitarRecuperacion from "./Pages/Recovery/SolicitarRecuperacion";
 import RestablecerContrasena from "./Pages/Recovery/RestablecerContrasena";
 import Saldos from "./Pages/Saldos/Saldos";
 import PaymentCreditPage from "./components/PDF/PDF CREDITOS/PaymentCreditPage";
@@ -54,7 +53,12 @@ function App() {
     <>
       <Router>
         {/* Notificaciones */}
-        <Toaster position="top-right" richColors={true} duration={3000} />
+        <Toaster
+          position="top-right"
+          richColors={true}
+          duration={3000}
+          closeButton={true}
+        />
 
         <Routes>
           {/* Redirecciona a dashboard */}
@@ -95,17 +99,17 @@ function App() {
             <Route
               path="/usuarios"
               element={
-                <ProtectedRoute>
+                <ProtectedRouteAdmin>
                   <Users />
-                </ProtectedRoute>
+                </ProtectedRouteAdmin>
               }
             />
             <Route
               path="/ventas"
               element={
-                <ProtectedRoute>
+                <ProtectedRouteAdmin>
                   <Sales />
-                </ProtectedRoute>
+                </ProtectedRouteAdmin>
               }
             />
             <Route
@@ -120,49 +124,49 @@ function App() {
             <Route
               path="/empleados"
               element={
-                <ProtectedRoute>
+                <ProtectedRouteAdmin>
                   <Employees />
-                </ProtectedRoute>
+                </ProtectedRouteAdmin>
               }
             />
             <Route
               path="/historial-prospectos"
               element={
-                <ProtectedRoute>
+                <ProtectedRouteAdmin>
                   <ProspectoHistorial />
-                </ProtectedRoute>
+                </ProtectedRouteAdmin>
               }
             />
             <Route
               path="/historial-empleados-check"
               element={
-                <ProtectedRoute>
+                <ProtectedRouteAdmin>
                   <SellerHistory />
-                </ProtectedRoute>
+                </ProtectedRouteAdmin>
               }
             />
             <Route
               path="/crear-productos"
               element={
-                <ProtectedRoute>
+                <ProtectedRouteAdmin>
                   <CreateProduct />
-                </ProtectedRoute>
+                </ProtectedRouteAdmin>
               }
             />
             <Route
               path="/asignar-stock"
               element={
-                <ProtectedRoute>
+                <ProtectedRouteAdmin>
                   <StockPage />
-                </ProtectedRoute>
+                </ProtectedRouteAdmin>
               }
             />
             <Route
               path="/ver-productos"
               element={
-                <ProtectedRoute>
+                <ProtectedRouteAdmin>
                   <ViewProducts />
-                </ProtectedRoute>
+                </ProtectedRouteAdmin>
               }
             />
             <Route
@@ -192,17 +196,17 @@ function App() {
             <Route
               path="/crear-categoria"
               element={
-                <ProtectedRoute>
+                <ProtectedRouteAdmin>
                   <CrearCategoria />
-                </ProtectedRoute>
+                </ProtectedRouteAdmin>
               }
             />
             <Route
-              path="/crear-proveedor"
+              path="/proveedor"
               element={
-                <ProtectedRoute>
+                <ProtectedRouteAdmin>
                   <CrearProveedor />
-                </ProtectedRoute>
+                </ProtectedRouteAdmin>
               }
             />
             <Route
@@ -216,9 +220,9 @@ function App() {
             <Route
               path="/registro-entregas"
               element={
-                <ProtectedRoute>
+                <ProtectedRouteAdmin>
                   <StockDeliveryRecords />
-                </ProtectedRoute>
+                </ProtectedRouteAdmin>
               }
             />
 
@@ -238,14 +242,14 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route
+            {/* <Route
               path="/conseguir-comprobante-entrega"
               element={
                 <ProtectedRoute>
                   <DeliveryPdfPage />
                 </ProtectedRoute>
               }
-            />
+            /> */}
             <Route
               path="/editar-cliente/:id"
               element={
@@ -276,9 +280,9 @@ function App() {
             <Route
               path="/historial-visitas"
               element={
-                <ProtectedRoute>
+                <ProtectedRouteAdmin>
                   <VisitasTable />
-                </ProtectedRoute>
+                </ProtectedRouteAdmin>
               }
             />
 
@@ -303,38 +307,38 @@ function App() {
             <Route
               path="/empresa-info"
               element={
-                <ProtectedRoute>
+                <ProtectedRouteAdmin>
                   <EmpresaForm />
-                </ProtectedRoute>
+                </ProtectedRouteAdmin>
               }
             />
 
             <Route
               path="/analisis"
               element={
-                <ProtectedRoute>
+                <ProtectedRouteAdmin>
                   <ChatsAnalytics />
-                </ProtectedRoute>
+                </ProtectedRouteAdmin>
               }
             />
 
             <Route
               path="/reportes"
               element={
-                <ProtectedRoute>
+                <ProtectedRouteAdmin>
                   <Reportes />
-                </ProtectedRoute>
+                </ProtectedRouteAdmin>
               }
             />
 
-            <Route
+            {/* <Route
               path="/recovery"
               element={
                 // <ProtectedRoute>
                 <SolicitarRecuperacion />
                 // </ProtectedRoute>
               }
-            />
+            /> */}
 
             <Route
               path="/restablecer-contraseña"
@@ -348,9 +352,9 @@ function App() {
             <Route
               path="/saldos"
               element={
-                <ProtectedRoute>
+                <ProtectedRouteAdmin>
                   <Saldos />
-                </ProtectedRoute>
+                </ProtectedRouteAdmin>
               }
             />
 
@@ -366,9 +370,9 @@ function App() {
             <Route
               path="/creditos"
               element={
-                <ProtectedRoute>
+                <ProtectedRouteAdmin>
                   <Creditos />
-                </ProtectedRoute>
+                </ProtectedRouteAdmin>
               }
             />
 

@@ -1,7 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "../components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -22,17 +28,26 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 // import { useTheme } from "next-themes";
 import {
+  AlertCircle,
+  AlertTriangle,
   Calendar,
+  Check,
+  CheckCircle,
   CheckCircle2,
   Coins,
   CreditCard,
+  Eye,
+  FileText,
+  Loader2,
+  Percent,
   Plus,
   Printer,
   Search,
-  ShoppingCartIcon,
+  ShoppingCart,
   Text,
+  Trash2,
+  User,
   X,
-  XIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import axios from "axios";
@@ -50,6 +65,15 @@ import customParseFormat from "dayjs/plugin/customParseFormat";
 import { Link } from "react-router-dom";
 import SelectComponent from "react-select";
 import { useStore } from "@/Context/ContextSucursal";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
+import { Separator } from "@/components/ui/separator";
+import placeholder from "@/assets/images/placeholder.jpg";
 dayjs.extend(localizedFormat);
 dayjs.extend(customParseFormat);
 dayjs.locale("es");
@@ -58,6 +82,12 @@ const formatearFecha = (fecha: string | undefined) => {
   let nueva_fecha = dayjs(fecha).format("DD MMMM YYYY, hh:mm:ss A");
   return nueva_fecha;
 };
+interface Imagen {
+  id: number;
+  url: string;
+  productoId: number;
+  creadoEn: string;
+}
 
 interface Producto {
   id: number;
@@ -69,6 +99,7 @@ interface Producto {
   codigoProducto: string;
   stock: Stock | null;
   categorias: Category[];
+  imagenes: Imagen[]; // Nueva propiedad
 }
 
 interface Stock {
@@ -170,7 +201,8 @@ export default function MakeSale() {
   const [selectedCategory, setSelectedCategory] = useState("Todas");
   const [selectedMetodPago, setSelectedMetodPago] = useState("CONTADO");
 
-  const [products, setProducts] = useState<Producto[]>([]);
+  // const [products, setProducts] = useState<Producto[]>([]);
+
   const [cart, setCart] = useState<(Producto & { quantity: number })[]>([]); // Agregamos `quantity` al estado del carrito
   const [selectedCustomer, setSelectedCustomer] = useState<Cliente | null>(
     null
@@ -186,22 +218,76 @@ export default function MakeSale() {
   const [showCartModal, setShowCartModal] = useState(false);
   const socket = useSocket();
 
-  // Obtener productos
+  // 📌 Estados para productos y paginación
+  const [products, setProducts] = useState<Producto[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isFetching, setIsFetching] = useState(false);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  const itemsPerPage = 8;
+
   useEffect(() => {
-    const getProducts = async () => {
+    const fetchProducts = async (newPage: number) => {
+      setIsFetching(true);
       try {
-        const response = await axios.get(`${API_URL}/product`);
-        if (response.status === 200) {
-          setProducts(response.data);
+        const response = await axios.get(
+          `${API_URL}/product?page=${newPage}&limit=${itemsPerPage}`
+        );
+
+        console.log(
+          "Productos recibidos:",
+          response.data.products.length,
+          response.data.products
+        );
+
+        if (response.status === 200 && Array.isArray(response.data.products)) {
+          setProducts((prev) => {
+            // 🔥 Filtrar duplicados antes de actualizar el estado
+            const mergedProducts = [...prev, ...response.data.products];
+            const uniqueProducts = mergedProducts.filter(
+              (product, index, self) =>
+                index === self.findIndex((p) => p.id === product.id)
+            );
+
+            return uniqueProducts;
+          });
+
+          setTotalPages(response.data.totalPages);
         }
       } catch (error) {
-        console.error(error);
-        toast.error("No hay productos disponibles");
+        console.error("Error al obtener productos:", error);
+      } finally {
+        setIsFetching(false);
       }
     };
 
-    getProducts();
-  }, []);
+    fetchProducts(page);
+  }, [page]);
+
+  // 🔍 Detectar scroll y cargar más productos
+  useEffect(() => {
+    // const observer = new IntersectionObserver(
+    //   (entries) => {
+    //     if (entries[0].isIntersecting && page < totalPages && !isFetching) {
+    //       setPage((prev) => prev + 1);
+    //     }
+    //   },
+    //   { threshold: 1.0 }
+    // );
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && page < totalPages && !isFetching) {
+          setPage((prev) => prev + 1);
+        }
+      },
+      { threshold: 0.2 } // Cambiar de 1.0 a 0.2
+    );
+
+    if (loadMoreRef.current) observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [isFetching, page, totalPages]);
 
   ///===============================
   const getCustomers = async () => {
@@ -237,7 +323,7 @@ export default function MakeSale() {
     getCustomers();
   }, []);
 
-  // Obtener clientes
+  // Obtener categorias
   useEffect(() => {
     const getCategories = async () => {
       try {
@@ -253,8 +339,6 @@ export default function MakeSale() {
 
     getCategories();
   }, []);
-
-  console.log(categoria);
 
   // Funciones de carrito
   const addToCart = (product: Producto) => {
@@ -456,6 +540,7 @@ export default function MakeSale() {
         setSelectedCustomer(null);
         setIsSubmitting(false);
         setShowCartModal(false);
+        setConfirmSale(false);
         setTimeout(() => {
           setOpenDialogSaleMade(true);
         }, 1500);
@@ -521,7 +606,7 @@ export default function MakeSale() {
 
   //   console.log("La data a enviar es: ", formateado);
 
-  //   // Verifica que los campos requeridos estén completos
+  //   // Validar campos requeridos
   //   if (
   //     !formateado.clienteId ||
   //     typeof formateado.monto === "undefined" ||
@@ -533,35 +618,55 @@ export default function MakeSale() {
   //     toast.info("Faltan campos sin llenar");
   //     return;
   //   }
-  //   console.log("Los datos a enviar son:");
 
-  //   console.log({
+  //   // Validaciones adicionales si es CREDITO
+  //   if (formateado.metodoPago === "CREDITO") {
+  //     if (
+  //       !formateado.numeroCuotas ||
+  //       formateado.numeroCuotas <= 0 ||
+  //       !formateado.interes ||
+  //       formateado.interes < 0 ||
+  //       !formateado.creditoInicial ||
+  //       formateado.creditoInicial < 0
+  //     ) {
+  //       toast.info(
+  //         "Datos de crédito inválidos. Revisa cuotas, interés y crédito inicial."
+  //       );
+  //       return;
+  //     }
+  //   }
+
+  //   console.log("Datos a enviar:", {
   //     formateado,
   //     registroVisitaId: registroAbierto?.id,
   //   });
 
   //   try {
   //     setIsSubmitting(true); // Deshabilitar el botón
-  //     console.log(formateado);
   //     const response = await axios.post(`${API_URL}/sale/sale-for-regis`, {
   //       ...formateado,
   //       registroVisitaId: registroAbierto?.id,
   //     });
+
   //     if (response.status === 200 || response.status === 201) {
+  //       setSaleMade(response.data); // Guardar datos de la venta
   //       toast.success("Venta creada");
   //       clearCart();
   //       setIsSubmitting(false); // Habilitar el botón si la venta es exitosa
-  //       setShowCartModal(false); // Opcional: cerrar el modal si la venta es exitosa
+  //       setShowCartModal(false); // Cerrar el modal
+
+  //       // Mostrar el diálogo después de un breve retraso
+  //       setTimeout(() => {
+  //         setOpenDialogSaleMade(true);
+  //       }, 1500);
   //     }
   //   } catch (error) {
   //     console.log(error);
   //     toast.error("Error al crear venta");
   //     setIsSubmitting(false); // Rehabilitar el botón si hay un error
   //   }
-  //   console.log("La otra funcion nueva");
-  //   console.log("El cart es: ", cart);
-  //   console.log("El id de registro abierto es: ", registroAbierto?.id);
   // }
+
   async function realizarVentaConVisita(
     cart: (Producto & { quantity: number })[]
   ) {
@@ -569,7 +674,6 @@ export default function MakeSale() {
 
     console.log("La data a enviar es: ", formateado);
 
-    // Validar campos requeridos
     if (
       !formateado.clienteId ||
       typeof formateado.monto === "undefined" ||
@@ -589,36 +693,39 @@ export default function MakeSale() {
         formateado.numeroCuotas <= 0 ||
         !formateado.interes ||
         formateado.interes < 0 ||
+        !formateado.diasEntrePagos || // ✅ Agregado para igualar la validación de sendCartData
+        formateado.diasEntrePagos < 0 ||
         !formateado.creditoInicial ||
         formateado.creditoInicial < 0
       ) {
         toast.info(
-          "Datos de crédito inválidos. Revisa cuotas, interés y crédito inicial."
+          "Datos de crédito inválidos. Revisa cuotas, interés, días entre pagos y crédito inicial."
         );
         return;
       }
     }
 
     console.log("Datos a enviar:", {
-      formateado,
+      ...formateado,
       registroVisitaId: registroAbierto?.id,
     });
 
     try {
-      setIsSubmitting(true); // Deshabilitar el botón
+      setIsSubmitting(true);
       const response = await axios.post(`${API_URL}/sale/sale-for-regis`, {
         ...formateado,
         registroVisitaId: registroAbierto?.id,
+        visita: true,
       });
 
       if (response.status === 200 || response.status === 201) {
-        setSaleMade(response.data); // Guardar datos de la venta
+        setSaleMade(response.data);
         toast.success("Venta creada");
         clearCart();
-        setIsSubmitting(false); // Habilitar el botón si la venta es exitosa
-        setShowCartModal(false); // Cerrar el modal
-
-        // Mostrar el diálogo después de un breve retraso
+        // setSelectedCustomer(null); // ✅ Igual que en sendCartData
+        setIsSubmitting(false);
+        setShowCartModal(false);
+        setConfirmSale(false);
         setTimeout(() => {
           setOpenDialogSaleMade(true);
         }, 1500);
@@ -626,7 +733,7 @@ export default function MakeSale() {
     } catch (error) {
       console.log(error);
       toast.error("Error al crear venta");
-      setIsSubmitting(false); // Rehabilitar el botón si hay un error
+      setIsSubmitting(false);
     }
   }
 
@@ -745,7 +852,123 @@ export default function MakeSale() {
     }
   }
 
+  // interface CreditSummaryProps {
+  //   saldoRestante: number;
+  //   montoTotal: number;
+  //   montoInteres: number;
+  //   montoTotalConInteres: number;
+  //   pagoPorCuota: number;
+  //   fechasDePago: string[];
+  // }
+
+  interface SummaryItemProps {
+    icon: React.ReactNode;
+    label: string;
+    value: number;
+  }
+
+  function SummaryItem({
+    icon,
+    label,
+    value,
+  }: SummaryItemProps): React.ReactElement {
+    return (
+      <div className="flex items-center space-x-2">
+        {icon}
+        <div>
+          <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
+          <p className="font-semibold">
+            {value.toLocaleString("es-GT", {
+              style: "currency",
+              currency: "GTQ",
+            })}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // const fechas =
+  const [confirmSale, setConfirmSale] = useState(false);
+
+  // const [truncarSelectDescuentoForCredit, setTruncarSelectDescuentoForCredit] =
+  //   useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (loadMoreRef.current) {
+        const rect = loadMoreRef.current.getBoundingClientRect();
+        const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
+
+        if (isVisible && page < totalPages && !isFetching) {
+          setPage((prev) => prev + 1);
+        }
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [page, isFetching, totalPages]);
+
+  interface ProductImageCarouselProps {
+    images: { url: string }[];
+    productName: string;
+  }
+
+  function ProductImageCarousel({
+    images,
+    productName,
+  }: ProductImageCarouselProps) {
+    return (
+      <div className="relative w-full">
+        <Carousel className="w-full">
+          <CarouselContent>
+            {images.length > 0 ? (
+              images.map((image, index) => (
+                <CarouselItem key={index}>
+                  <div className="p-1">
+                    <Card>
+                      <CardContent className="flex aspect-square items-center justify-center p-4">
+                        <img
+                          src={image.url ? image.url : placeholder}
+                          alt={`${productName} - Image ${index + 1}`}
+                          className="object-cover w-full h-full rounded-md"
+                        />
+                      </CardContent>
+                    </Card>
+                  </div>
+                </CarouselItem>
+              ))
+            ) : (
+              <CarouselItem>
+                <div className="p-1">
+                  <Card>
+                    <CardContent className="flex aspect-square items-center justify-center p-4">
+                      <img
+                        src={placeholder}
+                        alt="Imagen no disponible"
+                        className="object-cover w-full h-full rounded-md"
+                      />
+                    </CardContent>
+                  </Card>
+                </div>
+              </CarouselItem>
+            )}
+          </CarouselContent>
+          <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 scale-75 z-10 bg-white/70 shadow-md" />
+          <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 scale-75 z-10 bg-white/70 shadow-md" />
+        </Carousel>
+      </div>
+    );
+  }
+
+  const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
+  const [product, setProduct] = useState<Producto>();
+  const handleQuickView = (product: Producto) => {
+    setIsQuickViewOpen(true);
+    setProduct(product);
+  };
+  const [hoveredProduct, setHoveredProduct] = useState<number | null>(null);
 
   return (
     <div className="grid grid-cols-1 gap-4">
@@ -833,6 +1056,7 @@ export default function MakeSale() {
                     noOptionsMessage={() => "No hay descuentos disponibles"}
                     isSearchable
                     className="text-black"
+                    isDisabled={selectedMetodPago === "CREDITO"}
                   />
                 </div>
               </div>
@@ -841,7 +1065,7 @@ export default function MakeSale() {
         </Card>
 
         {/* Solicitar Descuento Personalizado */}
-        <Card className="mb-1 shadow-xl">
+        {/* <Card className="mb-1 shadow-xl">
           <CardContent>
             <h3 className="text-md font-semibold mb-4 pt-2">
               Solicitar Descuento
@@ -873,21 +1097,69 @@ export default function MakeSale() {
               Solicitar Descuento Personalizado
             </Button>
           </CardContent>
+        </Card> */}
+        <Card className="mb-4 shadow-lg bg-white dark:bg-gray-800">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold flex items-center gap-2 text-gray-800 dark:text-gray-200">
+              <Percent className="w-5 h-5" />
+              Solicitar Descuento
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <div className="relative flex-1">
+                <Input
+                  type="number"
+                  placeholder="Porcentaje"
+                  min="0"
+                  max="100"
+                  value={descuento || ""}
+                  onChange={(e) => setDescuento(Number(e.target.value))}
+                  className="pl-8 pr-4 py-2 w-full"
+                />
+                <span className="absolute inset-y-0 left-3 flex items-center text-gray-500 pointer-events-none">
+                  %
+                </span>
+              </div>
+            </div>
+            <div className="relative">
+              <Textarea
+                placeholder="Justificación del descuento"
+                onChange={(e) => setNota(e.target.value)}
+                value={nota}
+                className="pl-10 resize-none"
+                rows={4}
+              />
+              <FileText className="absolute top-3 left-3 w-5 h-5 text-gray-400" />
+            </div>
+          </CardContent>
+          <CardFooter>
+            <Button
+              type="button"
+              // disabled={isRequesting}
+              onClick={requestCustomDiscount}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white transition-colors duration-200"
+            >
+              Solicitar Descuento Personalizado
+            </Button>
+          </CardFooter>
         </Card>
       </div>
 
       {/* Método de Pago y Carrito */}
-      <div className="w-full p-4 ">
-        <Card className="mb-1 shadow-xl">
-          <CardContent>
-            <h3 className="text-md font-semibold mb-4 pt-2">Método de Pago</h3>
+      <div className="w-full p-4">
+        <Card className="mb-1 shadow-xl bg-white dark:bg-gray-800">
+          <CardContent className="p-6">
+            <h3 className="text-xl font-semibold mb-6 text-gray-800 dark:text-gray-200">
+              Método de Pago
+            </h3>
 
             <Select
               value={selectedMetodPago}
               onValueChange={setSelectedMetodPago}
             >
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="CONTADO" />
+              <SelectTrigger className="w-full mb-4">
+                <SelectValue placeholder="Seleccione método de pago" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="CONTADO">CONTADO</SelectItem>
@@ -895,116 +1167,132 @@ export default function MakeSale() {
                 <SelectItem value="TRANSFERENCIA_BANCO">
                   TRANSFERENCIA BANCARIA
                 </SelectItem>
-
-                <SelectItem value="CREDITO">CREDITO</SelectItem>
+                <SelectItem disabled={!!selectedDiscount} value="CREDITO">
+                  CRÉDITO
+                </SelectItem>
               </SelectContent>
             </Select>
 
             <Button
-              variant="outline"
+              // variant="destructive"
               onClick={() => setShowCartModal(true)}
-              className="mt-4"
+              className="bg-red-500 w-full  text-white"
             >
-              <ShoppingCartIcon className="mr-2" />
+              <ShoppingCart className="mr-2 h-5 w-5" />
               Ver Carrito ({cart.length})
             </Button>
 
             <Dialog open={showCartModal} onOpenChange={setShowCartModal}>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Carrito de Compras</DialogTitle>
-                  <DialogDescription>
-                    Estos son los productos que has añadido al carrito.
+              <DialogContent className="sm:max-w-[425px] md:max-w-[600px] lg:max-w-[700px] h-[90vh] max-h-[800px] flex flex-col">
+                <DialogHeader className="flex-shrink-0">
+                  <DialogTitle className="flex items-center justify-between text-xl">
+                    <span className="flex items-center gap-2">
+                      <ShoppingCart className="w-5 h-5" />
+                      Carrito de Compras
+                    </span>
+                  </DialogTitle>
+                  <DialogDescription className="text-sm text-gray-500">
+                    Productos añadidos al carrito.
                   </DialogDescription>
                 </DialogHeader>
-                <ScrollArea className="h-[300px]">
+
+                <ScrollArea className="flex-grow mt-4 pr-4">
                   {cart.length === 0 ? (
-                    <p className="text-muted-foreground text-center">
+                    <p className="text-gray-500 text-center py-4">
                       El carrito está vacío
                     </p>
                   ) : (
                     cart.map((item) => (
                       <div
                         key={item.id}
-                        className="flex items-center justify-between mb-4"
+                        className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 pb-4 border-b border-gray-200 dark:border-gray-700"
                       >
-                        <div className="flex items-center gap-2">
-                          <p className="font-semibold">{item.nombre}</p>
-                          <p>=</p>
-                          <p className="text-sm text-muted-foreground">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-2 sm:mb-0">
+                          <p className="font-semibold text-gray-800 dark:text-gray-200">
+                            {item.nombre}
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
                             Q{item.precio.toFixed(2)}
                           </p>
                         </div>
-                        <div className="flex items-center">
+                        <div className="flex items-center gap-10">
                           <Input
                             type="number"
                             min="1"
                             max={item.stock?.cantidad}
                             value={item.quantity}
-                            onChange={(e) =>
-                              updateQuantity(item.id, parseInt(e.target.value))
-                            }
-                            className="w-16 mr-2"
+                            onChange={(e) => {
+                              const value = e.target.value
+                                ? Number.parseInt(e.target.value)
+                                : 1;
+                              updateQuantity(item.id, value);
+                            }}
+                            className="w-16 text-center"
+                            aria-label={`Cantidad de ${item.nombre}`}
                           />
                           <Button
                             variant="destructive"
-                            size="sm"
+                            size="icon"
                             onClick={() => removeFromCart(item.id)}
+                            aria-label={`Eliminar ${item.nombre} del carrito`}
                           >
-                            <XIcon />
+                            <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>
                     ))
                   )}
                 </ScrollArea>
-                <DialogFooter className="flex justify-between items-center">
-                  <div className="space-y-2">
-                    <p className="font-semibold">Total: Q{calculateTotal()}</p>
-                    <p className="font-semibold">
-                      Total con descuento: Q{calculateTotalConDescuento()}
+
+                <div className="flex-shrink-0 mt-4 space-y-4">
+                  <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg text-sm">
+                    <p className="font-semibold flex items-center gap-2 text-gray-800 dark:text-gray-200">
+                      <CreditCard className="w-4 h-4" />
+                      Total: Q{calculateTotal().toFixed(2)}
                     </p>
-                    <p className="font-semibold">
+                    <p className="font-semibold flex items-center gap-2 text-green-600 dark:text-green-400">
+                      <Percent className="w-4 h-4" />
+                      Total con descuento: Q
+                      {calculateTotalConDescuento().toFixed(2)}
+                    </p>
+                    <p className="text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                      <Percent className="w-4 h-4" />
                       Descuento:{" "}
                       {selectedDiscount
                         ? `${selectedDiscount.porcentaje}%`
-                        : "Descuento no seleccionado"}
+                        : "No seleccionado"}
                     </p>
-                    <p className="font-semibold">
+                    <p className="text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                      <User className="w-4 h-4" />
                       Cliente:{" "}
                       {registroAbierto
                         ? registroAbierto.cliente.nombre
                         : selectedCustomer?.nombre}
                     </p>
-                    <p className="font-semibold">
+                    <p className="text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                      <CreditCard className="w-4 h-4" />
                       Método de pago: {selectedMetodPago}
                     </p>
                   </div>
-                  <div className="flex gap-2 pb-1">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        if (registroAbierto) {
-                          // Función para venta con visita abierta
-                          realizarVentaConVisita(cart);
-                        } else {
-                          // Función convencional
-                          sendCartData(cart);
-                        }
-                      }}
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? "Procesando..." : "Confirmar venta"}
-                    </Button>
 
+                  <DialogFooter className="flex flex-col sm:flex-row gap-2">
                     <Button
-                      variant="outline"
+                      variant="default"
+                      onClick={() => setConfirmSale(true)}
+                      disabled={isSubmitting || cart.length === 0}
+                      className="w-full lg:w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      Hacer venta
+                    </Button>
+                    <Button
+                      variant="destructive"
                       onClick={() => setShowCartModal(false)}
+                      className="w-full sm:w-auto lg:w-full"
                     >
                       Cerrar
                     </Button>
-                  </div>
-                </DialogFooter>
+                  </DialogFooter>
+                </div>
               </DialogContent>
             </Dialog>
           </CardContent>
@@ -1099,6 +1387,8 @@ export default function MakeSale() {
                     </div>
                   </div>
 
+                  {/* MEJORAR LA VISTA DE NOTIFICACIONES ENTRANTES EN MOVIL, VERIFICAR EL PDF, AÑADIR EL ARRAY DE IMAGENES A LOS PRODUCTOS */}
+
                   {/* Pago Inicial */}
                   <div className="flex items-center gap-4">
                     <Coins className="w-5 h-5 text-gray-500" />
@@ -1149,64 +1439,69 @@ export default function MakeSale() {
               </div>
 
               {/* Resumen del Crédito */}
-              <div className="p-6 mt-5 bg-gray-50 rounded-lg shadow-md dark:bg-transparent border-2">
-                <h4 className="text-lg font-semibold mb-4 text-center text-primary">
-                  Resumen del Crédito
-                </h4>
-                <div className="space-y-2">
-                  <p>
-                    <strong>Saldo Restante a Pagar:</strong>{" "}
-                    {saldoRestante.toLocaleString("es-GT", {
-                      style: "currency",
-                      currency: "GTQ",
-                    })}
-                  </p>
-                  <p>
-                    <strong>Monto sin interés:</strong>{" "}
-                    {montoTotal.toLocaleString("es-GT", {
-                      style: "currency",
-                      currency: "GTQ",
-                    })}
-                  </p>
-                  <p>
-                    <strong>Monto de Interés:</strong>{" "}
-                    {montoInteres.toLocaleString("es-GT", {
-                      style: "currency",
-                      currency: "GTQ",
-                    })}
-                  </p>
-                  <p>
-                    <strong>Monto Total con Interés:</strong>{" "}
-                    {montoTotalConInteres.toLocaleString("es-GT", {
-                      style: "currency",
-                      currency: "GTQ",
-                    })}
-                  </p>
-                  <p>
-                    <strong>Pago por Cada Cuota:</strong>{" "}
-                    {pagoPorCuota.toLocaleString("es-GT", {
-                      style: "currency",
-                      currency: "GTQ",
-                    })}
-                  </p>
-                </div>
-                <div className="">
-                  {fechasDePago.length <= 0 ? (
-                    <p className="text-sm font-thin py-2">
-                      Ingrese el número de cuotas y los días entre pagos.
-                    </p>
-                  ) : (
-                    <ul>
-                      {fechasDePago.map((fecha, index) => (
-                        <li key={index}>
-                          <span className="font-bold">{index + 1}: </span>
-                          <span className="">{fecha}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </div>
+              <Card className="mt-5 dark:bg-gray-800">
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold text-center text-primary">
+                    <CreditCard className="inline-block mr-2 h-6 w-6" />
+                    Resumen del Crédito
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
+                    <SummaryItem
+                      icon={<CreditCard className="h-5 w-5 text-primary" />}
+                      label="Saldo Restante a Pagar"
+                      value={saldoRestante}
+                    />
+                    <SummaryItem
+                      icon={<CreditCard className="h-5 w-5 text-green-500" />}
+                      label="Monto sin interés"
+                      value={montoTotal}
+                    />
+                    <SummaryItem
+                      icon={<CreditCard className="h-5 w-5 text-yellow-500" />}
+                      label="Monto de Interés"
+                      value={montoInteres}
+                    />
+                    <SummaryItem
+                      icon={<CreditCard className="h-5 w-5 text-red-500" />}
+                      label="Monto Total con Interés"
+                      value={montoTotalConInteres}
+                    />
+                    <SummaryItem
+                      icon={<CreditCard className="h-5 w-5 text-blue-500" />}
+                      label="Pago por Cada Cuota"
+                      value={pagoPorCuota}
+                    />
+                  </div>
+
+                  <div className="mt-6">
+                    <h5 className="text-md font-semibold mb-2 flex items-center">
+                      <Calendar className="inline-block mr-2 h-5 w-5" />
+                      Fechas de Pago
+                    </h5>
+                    {fechasDePago.length <= 0 ? (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
+                        <AlertCircle className="inline-block mr-2 h-4 w-4" />
+                        Ingrese el número de cuotas y los días entre pagos.
+                      </p>
+                    ) : (
+                      <ScrollArea className="h-[200px] rounded-md border p-4">
+                        <ul className="space-y-2">
+                          {fechasDePago.map((fecha, index) => (
+                            <li key={index} className="flex items-center">
+                              <span className="font-bold mr-2">
+                                {index + 1}:
+                              </span>
+                              <span>{fecha}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </ScrollArea>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </div>
         )}
@@ -1248,50 +1543,82 @@ export default function MakeSale() {
           </CardContent>
         </Card>
 
-        <ScrollArea className="h-[calc(100vh-300px)] shadow-xl rounded-lg">
+        <ScrollArea className="h-[calc(100vh-100px)] shadow-xl rounded-lg">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
+            {/* SKELETON XD */}
+            {isFetching &&
+              Array.from({ length: 4 }).map((_, index) => (
+                <div key={`skeleton-${index}`} className="animate-pulse">
+                  <Card className="h-full flex flex-col p-4">
+                    <div className="w-full aspect-w-1 aspect-h-1 bg-gray-300 rounded-md"></div>
+                    <div className="h-6 bg-gray-300 rounded mt-4 w-3/4"></div>
+                    <div className="h-4 bg-gray-300 rounded mt-2 w-1/2"></div>
+                    <div className="h-8 bg-gray-300 rounded mt-4 w-full"></div>
+                  </Card>
+                </div>
+              ))}
+
             {filteredProducts.map((product) => (
               <motion.div
-                key={product.id}
+                key={`product-${product.id}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3 }}
               >
-                <Card className="h-full flex flex-col hover:shadow-lg transition-shadow duration-300">
-                  <CardContent className="flex-grow p-4">
-                    <div className="aspect-w-1 aspect-h-1 w-full mb-4">
-                      <img
-                        // src={product?.imagen || "/placeholder.svg"}
-                        alt={product.nombre}
-                        className="object-cover w-full h-full rounded-md"
+                <Card
+                  className="h-full flex flex-col hover:shadow-lg transition-all duration-300"
+                  // onMouseEnter={() => setIsHovered(true)}
+                  // onMouseLeave={() => setIsHovered(false)}
+                  onMouseEnter={() => setHoveredProduct(product.id)}
+                >
+                  <CardContent className="flex-grow p-4 relative">
+                    <div className="aspect-w-1 aspect-h-1 w-full mb-4 relative">
+                      <ProductImageCarousel
+                        images={product.imagenes}
+                        productName={product.nombre}
                       />
+                      {hoveredProduct === product.id && (
+                        <Button
+                          variant="secondary"
+                          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/60 text-white p-3 rounded-full transition-all duration-300"
+                          onClick={() => handleQuickView(product)}
+                        >
+                          <Eye className="h-6 w-6" />
+                        </Button>
+                      )}
                     </div>
-                    <h3 className="font-semibold text-lg mb-2">
+                    <h3 className="font-semibold text-lg mb-2 line-clamp-2">
                       {product.nombre}
                     </h3>
                     <p className="text-sm text-muted-foreground mb-2">
                       {product.codigoProducto}
                     </p>
                     <div className="flex flex-wrap gap-2 mb-2">
-                      {product.categorias.map((cat) => (
-                        <Badge key={cat.categoria.id} variant="secondary">
+                      {product.categorias.map((cat, index) => (
+                        <Badge
+                          key={`category-${product.id}-${index}`}
+                          variant="secondary"
+                        >
                           {cat.categoria.nombre}
                         </Badge>
                       ))}
                     </div>
-                    <p className="font-bold text-lg mb-2">
-                      Q{product.precio.toFixed(2)}
-                    </p>
-                    <p className="text-sm">
-                      Stock:{" "}
-                      {product.stock && product.stock.cantidad > 0 ? (
-                        <Badge variant="outline">
-                          {product.stock.cantidad}
-                        </Badge>
-                      ) : (
-                        <Badge variant="destructive">Fuera de stock</Badge>
-                      )}
-                    </p>
+                    <div className="flex justify-between items-center mb-2">
+                      <p className="font-bold text-lg">
+                        Q{product.precio.toFixed(2)}
+                      </p>
+                      <Badge
+                        variant={
+                          product.stock && product.stock.cantidad > 0
+                            ? "default"
+                            : "destructive"
+                        }
+                      >
+                        {product.stock && product.stock.cantidad > 0
+                          ? "En stock"
+                          : "Agotado"}
+                      </Badge>
+                    </div>
                   </CardContent>
                   <CardFooter className="p-4">
                     <Button
@@ -1299,15 +1626,174 @@ export default function MakeSale() {
                       disabled={!product.stock || product.stock.cantidad === 0}
                       className="w-full"
                     >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Añadir al Carrito
+                      {cart.some((prod) => prod.id === product.id) ? (
+                        <>
+                          <Check className="mr-2 h-4 w-4" />
+                          En el carrito
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Añadir al Carrito
+                        </>
+                      )}
                     </Button>
                   </CardFooter>
                 </Card>
               </motion.div>
             ))}
           </div>
+
+          <Dialog open={isQuickViewOpen} onOpenChange={setIsQuickViewOpen}>
+            {product && (
+              <DialogContent className="max-w-[90%] max-h-[95%] sm:max-w-[80%] md:max-w-[600px] lg:max-w-[800px] mx-auto overflow-auto grid place-items-center">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl font-bold">
+                    {product.nombre}
+                  </DialogTitle>
+                  <DialogDescription className="text-sm text-muted-foreground">
+                    Código: {product.codigoProducto}
+                  </DialogDescription>
+                </DialogHeader>
+                {/* <div className="grid gap-4 py-4 md:grid-cols-2"> */}
+
+                {/* MEJORAR LA VISTA DE PRODUCTOS EN STOCK, MEJORAR LA PAGINA DONDE
+                MOSTRAMOS LOS PRODUCTOS A AÑADIR STOCK, LA EDIION DE PRODUCTOS,
+                ELIMINACION, Y AÑADIDO DE IMAGENES, SI ES POSIBLE MEJORAR LA
+                ADICION DE IMAGEN AL CROP PORQUE SIENTO QUE ESTÁ PEQUEÑA XD
+                SOLAMENTE, CREO, ACTUALIZAR EL SERVIDOR, LAS CREDENCIALES DE
+                CLOUDINARY, LAS CREDENCIALES DE GOOGLE MAPS, ETC. */}
+
+                <div className="grid gap-4 py-1 md:py-0 md:grid-cols-2">
+                  <div className="order-2 md:order-1 relative">
+                    <Carousel className="w-full max-w-xs mx-auto">
+                      <CarouselContent>
+                        {product.imagenes.length > 0 ? (
+                          product.imagenes.map((image, index) => (
+                            <CarouselItem key={index}>
+                              <div className="p-1">
+                                <img
+                                  src={
+                                    image.url.length > 0
+                                      ? image.url
+                                      : placeholder
+                                  }
+                                  alt={`${product.nombre} - Imagen ${
+                                    index + 1
+                                  }`}
+                                  className="w-full h-64 object-cover rounded-md"
+                                />
+                              </div>
+                            </CarouselItem>
+                          ))
+                        ) : (
+                          <CarouselItem>
+                            <div className="p-1">
+                              <img
+                                src={placeholder}
+                                alt="Imagen no disponible"
+                                className="w-full h-64 object-cover rounded-md"
+                              />
+                            </div>
+                          </CarouselItem>
+                        )}
+                      </CarouselContent>
+                      <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2" />
+                      <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2" />
+                    </Carousel>
+                  </div>
+                  <div className="order-1 md:order-2">
+                    <ScrollArea className="h-[250px] md:h-[400px] w-full rounded-md border p-4">
+                      <h4 className="font-semibold mb-2">Descripción</h4>
+                      <p className="text-sm mb-4">{product.descripcion}</p>
+                      <Separator className="my-4" />
+                      <h4 className="font-semibold mb-2">Detalles</h4>
+                      <ul className="text-sm space-y-2">
+                        <li>
+                          <strong>Precio:</strong> Q{product.precio.toFixed(2)}
+                        </li>
+                        <li>
+                          <strong>Estado:</strong>
+                          <Badge
+                            variant={
+                              product.stock && product.stock.cantidad > 0
+                                ? "default"
+                                : "destructive"
+                            }
+                            className="ml-2"
+                          >
+                            {product.stock && product.stock.cantidad > 0
+                              ? "En stock"
+                              : "Agotado"}
+                          </Badge>
+                        </li>
+                        {product.stock && (
+                          <li>
+                            <strong>Cantidad disponible:</strong>{" "}
+                            {product.stock.cantidad}
+                          </li>
+                        )}
+                        <li>
+                          <strong>Categorías:</strong>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            {product.categorias.map((cat, index) => (
+                              <Badge key={index} variant="outline">
+                                {cat.categoria.nombre}
+                              </Badge>
+                            ))}
+                          </div>
+                        </li>
+                      </ul>
+                    </ScrollArea>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-4">
+                  <Button
+                    onClick={() => setIsQuickViewOpen(false)}
+                    variant="destructive"
+                  >
+                    Cerrar
+                  </Button>
+                  {/* <Button
+                    onClick={() => {
+                      addToCart(product);
+                      setIsQuickViewOpen(false);
+                    }}
+                    disabled={!product.stock || product.stock.cantidad === 0}
+                  >
+                    <ShoppingCart className="mr-2 h-4 w-4" />
+                    Añadir al Carrito
+                  </Button> */}
+
+                  <Button
+                    onClick={() => addToCart(product)}
+                    disabled={!product.stock || product.stock.cantidad === 0}
+                    className="w-full"
+                  >
+                    {cart.some((prod) => prod.id === product.id) ? (
+                      <>
+                        <Check className="mr-2 h-4 w-4" />
+                        En el carrito
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Añadir al Carrito
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </DialogContent>
+            )}
+          </Dialog>
+
+          {/* DETECTOR DE CARGA dentro de ScrollArea */}
+          <div ref={loadMoreRef} className="h-16"></div>
         </ScrollArea>
+
+        {isFetching && (
+          <p className="text-center text-xl font-bold">CARGANDO...</p>
+        )}
       </div>
 
       <Dialog open={openDialogSaleMade} onOpenChange={setOpenDialogSaleMade}>
@@ -1354,20 +1840,96 @@ export default function MakeSale() {
           </div>
           <div className="mt-6 flex justify-end space-x-3">
             <Button
-              variant="outline"
+              variant="destructive"
               onClick={() => setOpenDialogSaleMade(false)}
-              className="inline-flex items-center"
+              className="inline-flex items-center w-full"
             >
               <X className="mr-2 h-4 w-4" />
               Cerrar
             </Button>
             <Link to={`/comprobante-venta/${saleMade?.id}`}>
-              <Button variant="default" className="inline-flex items-center">
+              <Button
+                variant="default"
+                className="inline-flex items-center w-full"
+              >
                 <Printer className="mr-2 h-4 w-4" />
                 Imprimir Comprobante
               </Button>
             </Link>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={confirmSale} onOpenChange={setConfirmSale}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-center text-xl font-semibold text-primary">
+              <AlertTriangle className="w-6 h-6 mr-2 text-warning" />
+              Confirmar Venta
+            </DialogTitle>
+            <DialogDescription className="text-center pt-2 text-muted-foreground">
+              ¿Estás seguro de que deseas realizar esta venta?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 text-center">
+            <AlertTriangle className="w-12 h-12 mx-auto text-warning mb-4" />
+            <div className="space-y-2">
+              <p className="flex items-center justify-center text-sm text-muted-foreground">
+                <Coins className="w-4 h-4 mr-2 text-primary" />
+                Total a pagar:{" "}
+                <span className="font-semibold ml-1">
+                  Q{calculateTotalConDescuento()}
+                </span>
+              </p>
+              <p className="flex items-center justify-center text-sm text-muted-foreground">
+                <User className="w-4 h-4 mr-2 text-primary" />
+                Cliente:{" "}
+                <span className="font-semibold ml-1">
+                  {registroAbierto
+                    ? registroAbierto.cliente.nombre
+                    : selectedCustomer?.nombre}
+                </span>
+              </p>
+              <p className="flex items-center justify-center text-sm text-muted-foreground">
+                <CreditCard className="w-4 h-4 mr-2 text-primary" />
+                Método de pago:{" "}
+                <span className="font-semibold ml-1">{selectedMetodPago}</span>
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="mt-6 flex flex-col sm:flex-row-reverse gap-3">
+            <Button
+              onClick={() => {
+                if (registroAbierto) {
+                  realizarVentaConVisita(cart);
+                } else {
+                  sendCartData(cart);
+                }
+              }}
+              disabled={isSubmitting || cart.length === 0}
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              {isSubmitting ? (
+                <span className="flex items-center justify-center">
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Procesando...
+                </span>
+              ) : (
+                <>
+                  <CheckCircle className="w-5 h-5 mr-2" />
+                  Confirmar venta
+                </>
+              )}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => setConfirmSale(false)}
+              className="w-full"
+            >
+              <X className="w-4 h-4 mr-2" />
+              Cancelar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

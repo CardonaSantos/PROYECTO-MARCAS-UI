@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,18 +6,29 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import Select from "react-select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   AlertCircle,
   Barcode,
   DollarSign,
+  Edit2,
   FileText,
   Package,
   RefreshCw,
   Save,
   Tags,
+  Trash2,
 } from "lucide-react";
-
+import { useDropzone } from "react-dropzone";
+import Cropper from "react-easy-crop";
+import { getCroppedImg } from "./Tools/cropImage";
+import { Area } from "react-easy-crop";
 const API_URL = import.meta.env.VITE_API_URL;
 
 interface Category {
@@ -31,9 +42,31 @@ interface FormData {
   descripcion: string;
   categoriaIds: number[];
   precio: number;
+  fotos: string[];
 }
 
 export default function CreateProduct() {
+  //OTROS
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [croppedImages, setCroppedImages] = useState<string[]>([]);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppingArea, setCroppingArea] = useState<Area | null>(null);
+  const [showCropper, setShowCropper] = useState(false);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null); // Índice de la imagen en edición
+
+  console.log("Imágenes recortadas: ", croppedImages);
+  const [originalImages, setOriginalImages] = useState<string[]>([]);
+  //
+
+  const onCropChange = (newCrop: any) => {
+    setCrop(newCrop); // Cambia la posición del cuadro de recorte
+  };
+
+  const onZoomChange = (newZoom: number) => {
+    setZoom(newZoom); // Cambia el nivel de zoom de la imagen
+  };
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [formData, setFormData] = useState<FormData>({
     nombre: "",
@@ -41,6 +74,7 @@ export default function CreateProduct() {
     descripcion: "",
     categoriaIds: [],
     precio: 0,
+    fotos: [],
   });
 
   const handleChange = (
@@ -62,6 +96,20 @@ export default function CreateProduct() {
     });
   };
 
+  const handleClean = () => {
+    setFormData({
+      nombre: "",
+      codigoProducto: "",
+      descripcion: "",
+      categoriaIds: [],
+      precio: 0,
+      fotos: [],
+    });
+    setCroppedImages([]);
+    setSelectedImage(null);
+    setShowCropper(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -76,27 +124,36 @@ export default function CreateProduct() {
     }
 
     validateForm();
+    console.log("Los datos a enviar son: ", formData);
+    console.log(formData.fotos.length);
+
+    setFormData({
+      ...formData,
+      fotos: croppedImages, // Verifica si croppedImages tiene las imágenes esperadas
+    });
+
+    if (formData.fotos.length <= 0) {
+      toast.warning("No hay fotos");
+      return;
+    }
 
     try {
-      const response = await axios.post(`${API_URL}/product`, formData);
-      if (response.status === 201) {
-        toast.success("Producto creado exitosamente");
-        handleClean();
-      }
+      await toast.promise(
+        axios.post(`${API_URL}/product`, formData).then((response) => {
+          if (response.status === 201) {
+            handleClean();
+          }
+          return response;
+        }),
+        {
+          loading: "Creando producto...",
+          success: "Producto creado exitosamente",
+          error: "Algo salió mal al crear el producto",
+        }
+      );
     } catch (error) {
       console.error(error);
-      toast.error("Algo salió mal al crear el producto");
     }
-  };
-
-  const handleClean = () => {
-    setFormData({
-      nombre: "",
-      codigoProducto: "",
-      descripcion: "",
-      categoriaIds: [],
-      precio: 0,
-    });
   };
 
   const getCategories = async () => {
@@ -143,6 +200,120 @@ export default function CreateProduct() {
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
+
+  //CROPS
+  ///==============================================>
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      const file = acceptedFiles[0];
+      const reader = new FileReader();
+
+      reader.onload = (event) => {
+        const imageUrl = event.target?.result as string;
+        setSelectedImage(imageUrl);
+        setShowCropper(true);
+
+        // Solo guardamos si no estamos editando
+        if (editingIndex === null) {
+          setOriginalImages((prev) => [...prev, imageUrl]);
+        }
+      };
+      reader.readAsDataURL(file);
+    },
+    [editingIndex]
+  );
+
+  const { getRootProps, getInputProps } = useDropzone({
+    onDrop,
+    accept: { "image/*": [] },
+  });
+
+  // Guardar la posición del área de recorte
+  const onCropComplete = (_: Area, croppedAreaPixels: Area) => {
+    setCroppingArea(croppedAreaPixels);
+  };
+
+  const handleCropImage = async () => {
+    if (selectedImage && croppingArea) {
+      const croppedImageUrl = await getCroppedImg(selectedImage, croppingArea);
+
+      if (!croppedImageUrl) {
+        return;
+      }
+
+      setCroppedImages((prev) => {
+        const updatedImages = [...prev];
+        if (editingIndex !== null) {
+          updatedImages[editingIndex] = croppedImageUrl; // Edita la imagen existente
+        } else {
+          updatedImages.push(croppedImageUrl); // Agrega una nueva imagen recortada
+        }
+        return updatedImages;
+      });
+
+      // Actualizar originalImages solo cuando se recorta
+      if (editingIndex !== null) {
+        const updatedOriginalImages = [...originalImages];
+        updatedOriginalImages[editingIndex] = selectedImage; // Reemplaza con la imagen original
+        setOriginalImages(updatedOriginalImages);
+      } else {
+        setOriginalImages((prev) => [...prev, selectedImage!]);
+      }
+
+      setShowCropper(false);
+      setSelectedImage(null);
+      setEditingIndex(null);
+    }
+  };
+
+  const handleDeleteImage = (index: number) => {
+    // Elimina de croppedImages
+    setCroppedImages((prev) => prev.filter((_, i) => i !== index));
+
+    // Elimina de originalImages
+    setOriginalImages((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      fotos: croppedImages,
+    }));
+  }, [croppedImages]); // Actualiza formData.fotos cuando croppedImages cambie
+
+  const [useFullImage, setUseFullImage] = useState(false);
+
+  const handleUseFullImage = () => {
+    if (selectedImage) {
+      setCroppedImages((prevImages) => {
+        if (editingIndex !== null) {
+          const updatedImages = [...prevImages];
+          updatedImages[editingIndex] = selectedImage;
+          return updatedImages;
+        }
+        return [...prevImages, selectedImage];
+      });
+
+      setUseFullImage(false); // Reset para evitar que afecte nuevas selecciones
+      setShowCropper(false);
+      setEditingIndex(null);
+      setSelectedImage(null);
+    }
+  };
+
+  const handleEdit = (index: number) => {
+    // Tomamos la imagen desde croppedImages para asegurar que sea la más actual
+    setSelectedImage(croppedImages[index]);
+    setShowCropper(true);
+    setUseFullImage(false);
+    setEditingIndex(index);
+  };
+
+  useEffect(() => {
+    if (selectedImage) {
+      setUseFullImage(false); // Resetear cuando haya una nueva imagen
+    }
+  }, [selectedImage]);
 
   return (
     <div className="container mx-auto p-4">
@@ -292,6 +463,7 @@ export default function CreateProduct() {
                 )}
               </div>
 
+              {/* PRECIOVENTA */}
               <div className="space-y-2">
                 <Label htmlFor="precio" className="flex items-center gap-2">
                   <DollarSign className="h-4 w-4" />
@@ -326,6 +498,81 @@ export default function CreateProduct() {
                 )}
               </div>
 
+              {/* Área para subir imágenes */}
+
+              {/* Área para subir imágenes */}
+              <div className="p-4">
+                {/* Input para subir imagen */}
+                <div
+                  {...getRootProps()}
+                  className="border p-4 rounded-md cursor-pointer text-center"
+                >
+                  <input {...getInputProps()} />
+                  <p>Arrastra una imagen aquí o haz clic para seleccionarla</p>
+                </div>
+
+                {/* Cropper o imagen completa */}
+                {selectedImage && (
+                  <>
+                    {!useFullImage && showCropper && (
+                      <div className="relative w-full max-w-sm mx-auto aspect-[4/3] mt-4">
+                        {/* Cropper */}
+                        <Cropper
+                          image={selectedImage}
+                          crop={crop}
+                          zoom={zoom}
+                          onCropChange={onCropChange}
+                          onCropComplete={onCropComplete}
+                          onZoomChange={onZoomChange}
+                          cropShape="rect"
+                          showGrid={true}
+                        />
+                      </div>
+                    )}
+
+                    {/* Botones */}
+                    <div className="flex flex-wrap justify-center gap-4 mt-4">
+                      {!useFullImage && (
+                        <>
+                          <Button
+                            type="button"
+                            onClick={() => {
+                              setSelectedImage(null);
+                              setShowCropper(false);
+                              setUseFullImage(false);
+                              setCrop({ x: 0, y: 0 });
+                              setZoom(1);
+                              setEditingIndex(null);
+                            }}
+                            className="bg-gray-500 w-full sm:w-auto"
+                          >
+                            Cancelar
+                          </Button>
+
+                          <Button
+                            type="button"
+                            onClick={handleCropImage}
+                            className="bg-blue-500 w-full sm:w-auto"
+                          >
+                            Recortar y Guardar
+                          </Button>
+                        </>
+                      )}
+
+                      {!useFullImage && (
+                        <Button
+                          type="button"
+                          onClick={handleUseFullImage}
+                          className="bg-green-500 w-full sm:w-auto"
+                        >
+                          Usar imagen completa
+                        </Button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+
               <div className="flex space-x-2">
                 <Button type="submit" className="flex items-center gap-2">
                   <Save className="h-4 w-4" />
@@ -345,6 +592,7 @@ export default function CreateProduct() {
           </CardContent>
         </Card>
 
+        {/* VISTA PREVIA PRODUCTO */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -376,6 +624,46 @@ export default function CreateProduct() {
                 <strong>Precio de venta:</strong> Q
                 {parseFloat(`${formData.precio || "0"}`).toFixed(2)}
               </p>
+            </div>
+
+            {/* VISUALIZAR IMAGENES */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-4">
+              {croppedImages.map((image, index) => (
+                <Card
+                  key={index}
+                  className="overflow-hidden bg-white dark:bg-gray-800 transition-shadow duration-300 hover:shadow-lg"
+                >
+                  <CardContent className="p-0">
+                    <div className="aspect-square relative">
+                      <img
+                        src={image || "/placeholder.svg"}
+                        alt={`Imagen recortada ${index + 1}`}
+                        className="w-full h-full object-cover rounded-t-lg"
+                      />
+                    </div>
+                  </CardContent>
+                  <CardFooter className="p-2 flex justify-between items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEdit(index)}
+                      className="w-full"
+                    >
+                      <Edit2 className="w-4 h-4 mr-2" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteImage(index)}
+                      className="w-full"
+                    >
+                      <Trash2 className="" />
+                    </Button>
+                  </CardFooter>
+                </Card>
+              ))}
             </div>
           </CardContent>
         </Card>

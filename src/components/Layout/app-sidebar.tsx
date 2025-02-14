@@ -10,9 +10,8 @@ import {
   CreditCard,
   FileClock,
   FileSpreadsheet,
-  FolderOpen,
+  // FolderOpen,
   Home,
-  KeyRound,
   MapPin,
   MapPinned,
   PackagePlus,
@@ -75,22 +74,22 @@ const menuItems = [
   { icon: Boxes, label: "Catálogo de Productos", href: "/ver-productos" },
   { icon: PackagePlus, label: "Nuevo Producto", href: "/crear-productos" },
 
-  {
-    icon: FolderOpen,
-    label: "Seguimiento de Cancelaciones",
-    href: "/seguimiento-de-cancelaciones",
-  },
+  // {
+  //   icon: FolderOpen,
+  //   label: "Seguimiento de Cancelaciones",
+  //   href: "/seguimiento-de-cancelaciones",
+  // },
 
   { icon: BarChart3, label: "Control de Inventario", href: "/asignar-stock" },
   { icon: Tags, label: "Categorías de Productos", href: "/crear-categoria" },
-  { icon: Truck, label: "Directorio de Proveedores", href: "/crear-proveedor" },
+  { icon: Truck, label: "Directorio de Proveedores", href: "/proveedor" },
   { icon: Box, label: "Registro de Entregas", href: "/registro-entregas" },
   { icon: CalendarPlus, label: "Programar Visita", href: "/visita" },
   { icon: UserPlus2, label: "Nuevo Prospecto", href: "/prospecto" },
   { icon: PieChart, label: "Estadísticas y Gráficos", href: "/analisis" },
   { icon: FileSpreadsheet, label: "Informes y Reportes", href: "/reportes" },
   { icon: Wallet, label: "Balance de Cuentas", href: "/saldos" },
-  { icon: KeyRound, label: "Restablecer Contraseña", href: "/recovery" },
+  // { icon: KeyRound, label: "Restablecer Contraseña", href: "/recovery" },
   { icon: Building2, label: "Información Corporativa", href: "/empresa-info" },
 ];
 

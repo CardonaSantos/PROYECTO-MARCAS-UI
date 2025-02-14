@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Search,
   Filter,
@@ -16,6 +16,9 @@ import {
   X,
   Save,
   FileText,
+  ImageIcon,
+  Trash,
+  ImagePlus,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -38,6 +41,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import SelectM, { MultiValue } from "react-select"; // Importación correcta de react-select
+import placeholder from "@/assets/images/placeholder.jpg";
 
 import axios from "axios";
 import { toast } from "sonner";
@@ -64,10 +68,28 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+  CarouselNext,
+  CarouselPrevious,
+} from "@/components/ui/carousel";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { useDropzone } from "react-dropzone";
+import { getCroppedImg } from "./Tools/cropImage";
+import Cropper from "react-easy-crop";
 
 const API_URL = import.meta.env.VITE_API_URL;
 // Mock product data
 // Tipos para Producto y Categoría
+interface Imagen {
+  id: number;
+  url: string;
+  productoId: number;
+  creadoEn: string;
+}
+
 type Producto = {
   id: number;
   nombre: string;
@@ -76,6 +98,7 @@ type Producto = {
   precio: number;
   categorias: { categoria: { id: number; nombre: string } }[]; // Incluyo el ID de categoría
   stock: { cantidad: number };
+  imagenes: Imagen[]; // Nueva propiedad
 };
 
 // Estado para editar el producto
@@ -86,6 +109,7 @@ interface ProductoEdit {
   descripcion: string;
   categoriaIds: number[]; // IDs de las categorías
   precio: number;
+  imagenes: Imagen[]; // Nueva propiedad
 }
 
 type Categoria = {
@@ -109,17 +133,20 @@ export default function ViewProducts() {
     descripcion: "",
     categoriaIds: [],
     precio: 0,
+    imagenes: [],
   });
   const [showFilters, setShowFilters] = useState(false);
   const [filters, setFilters] = useState({
     category: "Todas",
-    priceRange: [0, 300],
+    priceRange: [0, 5000],
   });
 
   // Obtener productos desde el API
   const getProducts = async () => {
     try {
-      const response = await axios.get(`${API_URL}/product`);
+      const response = await axios.get(
+        `${API_URL}/product/get-product-to-inventary`
+      );
       if (response.status === 200) {
         setProducts(response.data);
       }
@@ -155,14 +182,16 @@ export default function ViewProducts() {
   // Filtrar productos según filtros y búsqueda
   const filteredProducts = products.filter(
     (product) =>
-      (product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || // Buscar en nombre
-        product.codigoProducto
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase())) && // Buscar en código
-      product.precio >= filters.priceRange[0] && // Filtrar por precio mínimo
-      product.precio <= filters.priceRange[1] && // Filtrar por precio máximo
-      (filters.category === "Todas" || // Filtrar por categoría (opcional)
-        product.categorias.some(
+      (searchTerm
+        ? product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          product.codigoProducto
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase())
+        : true) && // Solo filtrar por búsqueda si searchTerm tiene algo
+      product.precio >= filters.priceRange[0] && // Rango de precio mínimo
+      product.precio <= filters.priceRange[1] && // Rango de precio máximo
+      (filters.category === "Todas" || // Verificar si la categoría está bien definida
+        product.categorias?.some(
           (cat) => cat.categoria.nombre === filters.category
         ))
   );
@@ -188,6 +217,7 @@ export default function ViewProducts() {
       descripcion: product.descripcion,
       categoriaIds: product.categorias.map((cat) => cat.categoria.id),
       precio: product.precio,
+      imagenes: product.imagenes,
     });
   };
 
@@ -243,6 +273,7 @@ export default function ViewProducts() {
           descripcion: "",
           categoriaIds: [],
           precio: 0,
+          imagenes: [],
         });
         setSelectedProduct(null); // Cierra el modal o panel de edición
       }
@@ -272,10 +303,207 @@ export default function ViewProducts() {
 
   const [openEdit, setOpenEdit] = useState(false);
 
+  //=============================================>
+  interface ProductImageCarouselProps {
+    images: { url: string }[];
+    productName: string;
+  }
+  function ProductImageCarousel({
+    images,
+    productName,
+  }: ProductImageCarouselProps) {
+    return (
+      <div className="relative w-full max-w-xs mx-auto aspect-square overflow-hidden">
+        <Carousel className="w-full h-full">
+          <CarouselContent>
+            {images.length > 0 ? (
+              images.map((image, index) => (
+                <CarouselItem key={index}>
+                  <div className="p-1">
+                    <Card>
+                      <CardContent className="flex aspect-square items-center justify-center p-2">
+                        <img
+                          src={image.url ? image.url : placeholder}
+                          alt={`${productName} - Image ${index + 1}`}
+                          className="object-cover w-full h-full rounded-md"
+                        />
+                      </CardContent>
+                    </Card>
+                  </div>
+                </CarouselItem>
+              ))
+            ) : (
+              <CarouselItem>
+                <div className="p-1">
+                  <Card>
+                    <CardContent className="flex aspect-square items-center justify-center p-2">
+                      <img
+                        src={placeholder}
+                        alt="Imagen no disponible"
+                        className="object-cover w-full h-full rounded-md"
+                      />
+                    </CardContent>
+                  </Card>
+                </div>
+              </CarouselItem>
+            )}
+          </CarouselContent>
+          <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 scale-75 z-10 bg-white/70 shadow-md" />
+          <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 scale-75 z-10 bg-white/70 shadow-md" />
+        </Carousel>
+      </div>
+    );
+  }
+  console.log("Mis PRODUCTOS SON: ", products);
+  console.log("PRODUCTOS FILTRADOS: ", filteredProducts);
+
+  const extractPublicIdFromUrl = (url: string) => {
+    const matches = url.match(/upload\/(?:v\d+\/)?([^\.]+)/);
+    return matches ? matches[1] : null;
+  };
+
+  const handleDeleteImage = async (imageUrl: string, imageId: number) => {
+    const publicId = extractPublicIdFromUrl(imageUrl);
+    if (!publicId) {
+      toast.error("ID público no encontrado");
+      return;
+    }
+
+    console.log("EL PUBLIC ID DE LA IMAGEN ES: ", publicId);
+
+    const deletePromise = axios.delete(
+      `${API_URL}/product/delete-one-image-product/${editedProduct.id}/image/${imageId}?publicId=${publicId}`
+    );
+
+    toast.promise(deletePromise, {
+      loading: "Eliminando imagen...",
+      success: async () => {
+        setEditedProduct((prev) => ({
+          ...prev,
+          imagenes: prev.imagenes?.filter((img) => img.url !== imageUrl) || [],
+        }));
+        await getProducts();
+        return "Imagen eliminada correctamente";
+      },
+      error: "Error al eliminar la imagen",
+    });
+
+    await deletePromise;
+  };
+
+  const formatearMoneda = (cantidad: number) => {
+    return new Intl.NumberFormat("es-GT", {
+      currency: "GTQ",
+      style: "currency",
+    }).format(cantidad);
+  };
+
+  //DATOS PARA EL CROP DE IMAGENES Y MODIFICACION
+  const [productToUpdateImages, setProductToUpdateImages] = useState(0);
+  const [showAddImageDialog, setShowAddImageDialog] = useState(false);
+
+  interface CroppedImage {
+    productId: number;
+    image: string;
+  }
+
+  //=========================================>
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [newImages, setNewImages] = useState<CroppedImage[]>([]);
+  const [crop, setCrop] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState<number>(1);
+  const [croppingArea, setCroppingArea] = useState<any>(null);
+  const [showCropper, setShowCropper] = useState<boolean>(false);
+  const [useFullImage, setUseFullImage] = useState<boolean>(false);
+
+  console.log(useFullImage);
+
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    const file = acceptedFiles[0];
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const imageUrl = event.target?.result as string;
+      setSelectedImage(imageUrl);
+      setShowCropper(true);
+      setUseFullImage(false);
+    };
+    reader.readAsDataURL(file);
+  }, []);
+
+  const { getRootProps, getInputProps } = useDropzone({
+    onDrop,
+    accept: { "image/*": [] },
+  });
+
+  const onCropComplete = (_: any, croppedAreaPixels: any) => {
+    setCroppingArea(croppedAreaPixels);
+  };
+
+  const handleCropImage = async () => {
+    if (selectedImage && croppingArea) {
+      const croppedImageUrl = await getCroppedImg(selectedImage, croppingArea);
+      if (!croppedImageUrl) return;
+      setNewImages((prev) => [
+        ...prev,
+        { productId: productToUpdateImages, image: croppedImageUrl },
+      ]);
+      setShowCropper(false);
+      setSelectedImage(null);
+    }
+  };
+
+  const handleUseFullImage = () => {
+    if (selectedImage) {
+      setNewImages((prev) => [
+        ...prev,
+        { productId: productToUpdateImages, image: selectedImage },
+      ]);
+      setShowCropper(false);
+      setUseFullImage(true);
+      setSelectedImage(null);
+    }
+  };
+
+  const handleConfirmUpload = async () => {
+    if (newImages.length <= 0) {
+      toast.info("Ingrese una imagen");
+      return;
+    }
+
+    const imagesArray = newImages.map((img) => img.image);
+    const uploadPromise = axios.patch(
+      `${API_URL}/product/update-images-product/${productToUpdateImages}`,
+      {
+        images: imagesArray,
+      }
+    );
+
+    toast.promise(uploadPromise, {
+      loading: "Subiendo imágenes...",
+      success: "Imágenes subidas correctamente!",
+      error: "Error al subir imágenes",
+    });
+
+    try {
+      const response = await uploadPromise;
+      if (response.status === 200 || response.status === 201) {
+        getProducts();
+        setNewImages([]);
+        setShowAddImageDialog(false);
+        setOpenEdit(false);
+      }
+    } catch (error) {
+      console.error("Error subiendo imágenes:", error);
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setNewImages((prevImages) => prevImages.filter((_, i) => i !== index));
+  };
+
   return (
     <div className="container mx-auto p-4">
       <h1 className="text-3xl font-bold mb-4">Gestión de Inventario</h1>
-
       <div className="flex flex-col md:flex-row gap-4 mb-6">
         <div className="flex-grow relative">
           <Search
@@ -300,11 +528,10 @@ export default function ViewProducts() {
           <Filter className="mr-2 h-4 w-4" aria-hidden="true" /> Filtros
         </Button>
       </div>
-
       {showFilters && (
         <div
           id="filters-panel"
-          className="mb-6 p-4 border rounded-lg bg-gray-50"
+          className="mb-6 p-4 border rounded-lg bg-gray-50 dark:bg-transparent"
         >
           <h2 className="text-lg font-semibold mb-4">Filtros</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -334,7 +561,7 @@ export default function ViewProducts() {
               <Slider
                 id="price-range"
                 min={0}
-                max={300}
+                max={5000}
                 step={10}
                 value={filters.priceRange}
                 onValueChange={(value) =>
@@ -350,7 +577,6 @@ export default function ViewProducts() {
           </div>
         </div>
       )}
-
       <Card className="shadow-xl">
         <CardHeader>
           <CardTitle className="sr-only">Lista de Productos</CardTitle>
@@ -396,7 +622,7 @@ export default function ViewProducts() {
                       {product.nombre}
                     </TableCell>
                     <TableCell>{product.codigoProducto}</TableCell>
-                    <TableCell>Q{product.precio.toFixed(2)}</TableCell>
+                    <TableCell>{formatearMoneda(product.precio)}</TableCell>
                     <TableCell className="text-[11px]">
                       {product.categorias
                         .map((cat) => cat.categoria.nombre) // Extraer los nombres de las categorías
@@ -404,17 +630,15 @@ export default function ViewProducts() {
                     </TableCell>
 
                     <TableCell>
-                      <Badge
-                        variant={
-                          product?.stock?.cantidad > 0
-                            ? "outline"
-                            : "destructive"
-                        }
-                      >
-                        {product?.stock?.cantidad > 0
-                          ? `En Stock (${product?.stock?.cantidad})`
-                          : "Fuera de Stock"}
-                      </Badge>
+                      {product?.stock?.cantidad > 0 ? (
+                        <span className="text-black font-bold dark:text-white">
+                          En Stock ({product?.stock?.cantidad})
+                        </span>
+                      ) : (
+                        <span className="text-red-500 font-bold">
+                          Fuera de Stocks
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
@@ -432,6 +656,7 @@ export default function ViewProducts() {
                           onClick={() => {
                             setOpenEdit(true);
                             handleEditProduct(product);
+                            setProductToUpdateImages(product.id);
                           }}
                           aria-label={`Editar ${product.nombre}`}
                         >
@@ -533,119 +758,174 @@ export default function ViewProducts() {
           </Pagination>
         </CardFooter>
       </Card>
-
+      {/* DIALOG DE EDICION DE PRODUCTO */}
       <Dialog open={openEdit} onOpenChange={setOpenEdit}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[550px] lg:max-w-[600px] max-h-[98vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Pencil className="h-5 w-5 text-primary" />
               Editar Producto
             </DialogTitle>
           </DialogHeader>
-          <form
-            className="space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleUpdateProducto();
-            }}
-          >
-            <div className="space-y-2">
-              <Label htmlFor="nombre" className="flex items-center gap-2">
-                <Package className="h-4 w-4" />
-                Nombre del Producto
-              </Label>
-              <Input
-                id="nombre"
-                name="nombre"
-                value={editedProduct?.nombre || ""}
-                onChange={handleInputChange}
-                required
-                aria-required="true"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="precio" className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4" />
-                Precio
-              </Label>
-              <Input
-                id="precio"
-                name="precio"
-                type="number"
-                value={editedProduct?.precio || ""}
-                onChange={handleInputChange}
-                required
-                aria-required="true"
-                min="0"
-                step="0.01"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label
-                htmlFor="codigoProducto"
-                className="flex items-center gap-2"
-              >
-                <Barcode className="h-4 w-4" />
-                Código del Producto
-              </Label>
-              <Input
-                id="codigoProducto"
-                name="codigoProducto"
-                value={editedProduct?.codigoProducto || ""}
-                onChange={handleInputChange}
-                required
-                aria-required="true"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="categorias" className="flex items-center gap-2">
-                <Tags className="h-4 w-4" />
-                Categorías
-              </Label>
-              <SelectM
-                inputId="categorias"
-                placeholder="Seleccionar..."
-                isMulti
-                name="categorias"
-                options={categorias.map((categoria) => ({
-                  value: categoria.id,
-                  label: categoria.nombre,
-                }))}
-                className="basic-multi-select"
-                classNamePrefix="select"
-                onChange={(
-                  selectedOptions: MultiValue<{
-                    value: number;
-                    label: string;
-                  }>
-                ) => {
-                  const selectedIds = selectedOptions.map(
-                    (option) => option.value
-                  );
-                  setEditedProduct({
-                    ...editedProduct,
-                    categoriaIds: selectedIds,
-                  });
-                }}
-                value={categorias
-                  .filter((categoria) =>
-                    editedProduct.categoriaIds?.includes(categoria.id)
-                  )
-                  .map((categoria) => ({
+
+          {/* Contenedor desplazable */}
+          <div className="overflow-y-auto flex-grow px-4">
+            <form
+              className="space-y-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleUpdateProducto();
+              }}
+            >
+              <div className="space-y-2">
+                <Label htmlFor="nombre" className="flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Nombre del Producto
+                </Label>
+                <Input
+                  id="nombre"
+                  name="nombre"
+                  value={editedProduct?.nombre || ""}
+                  onChange={handleInputChange}
+                  required
+                  aria-required="true"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="precio" className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  Precio
+                </Label>
+                <Input
+                  id="precio"
+                  name="precio"
+                  type="number"
+                  value={editedProduct?.precio || ""}
+                  onChange={handleInputChange}
+                  required
+                  aria-required="true"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label
+                  htmlFor="codigoProducto"
+                  className="flex items-center gap-2"
+                >
+                  <Barcode className="h-4 w-4" />
+                  Código del Producto
+                </Label>
+                <Input
+                  id="codigoProducto"
+                  name="codigoProducto"
+                  value={editedProduct?.codigoProducto || ""}
+                  onChange={handleInputChange}
+                  required
+                  aria-required="true"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="categorias" className="flex items-center gap-2">
+                  <Tags className="h-4 w-4" />
+                  Categorías
+                </Label>
+                <SelectM
+                  inputId="categorias"
+                  placeholder="Seleccionar..."
+                  isMulti
+                  name="categorias"
+                  options={categorias.map((categoria) => ({
                     value: categoria.id,
                     label: categoria.nombre,
                   }))}
-                aria-label="Seleccionar categorías"
-              />
-            </div>
-          </form>
-          <DialogFooter className="sm:justify-between">
+                  className="basic-multi-select"
+                  classNamePrefix="select"
+                  onChange={(
+                    selectedOptions: MultiValue<{
+                      value: number;
+                      label: string;
+                    }>
+                  ) => {
+                    const selectedIds = selectedOptions.map(
+                      (option) => option.value
+                    );
+                    setEditedProduct({
+                      ...editedProduct,
+                      categoriaIds: selectedIds,
+                    });
+                  }}
+                  value={categorias
+                    .filter((categoria) =>
+                      editedProduct.categoriaIds?.includes(categoria.id)
+                    )
+                    .map((categoria) => ({
+                      value: categoria.id,
+                      label: categoria.nombre,
+                    }))}
+                  aria-label="Seleccionar categorías"
+                />
+              </div>
+
+              {/* EDICION DE IMAGENES DEL PRODUCTO */}
+              <div className="space-y-4 pb-6">
+                {" "}
+                {/* Agregamos un padding-bottom */}
+                <Label className="flex items-center gap-2 text-lg font-semibold">
+                  <ImageIcon className="h-5 w-5 text-primary" />
+                  Imágenes del Producto
+                </Label>
+                <div className="max-h-[300px]">
+                  <ScrollArea className="h-full">
+                    <div className="grid grid-cols-3 gap-2 p-1">
+                      {editedProduct?.imagenes?.map((imagen, index) => (
+                        <div
+                          key={index}
+                          className="relative group rounded-md overflow-hidden shadow-lg transition-all hover:shadow-xl"
+                        >
+                          <img
+                            src={imagen.url}
+                            alt={`Imagen ${index + 1}`}
+                            className="w-full h-40 object-cover rounded-md border transition-all transform hover:scale-105"
+                          />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-2 bg-red-600 rounded-full hover:bg-red-700"
+                            onClick={() => {
+                              handleDeleteImage(imagen.url, imagen.id);
+                            }}
+                          >
+                            <Trash className="h-4 w-4 text-white" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          {/* Footer fijo */}
+          <DialogFooter className="sm:justify-between bg-white dark:bg-transparent py-3 border-t">
             <DialogClose asChild>
               <Button variant="outline" className="flex items-center gap-2">
                 <X className="h-4 w-4" />
                 Cancelar
               </Button>
             </DialogClose>
+
+            <Button
+              variant="outline"
+              className="flex items-center gap-2"
+              onClick={() => setShowAddImageDialog(true)}
+            >
+              <ImagePlus className="h-4 w-4" />
+              Añadir nuevas imágenes
+            </Button>
+
             <Button
               onClick={handleUpdateProducto}
               className="flex items-center gap-2"
@@ -656,82 +936,102 @@ export default function ViewProducts() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
+      {/* DIALOG DE DETALLES DE PRODUCTO */}
       <Dialog
         open={!!selectedProduct}
         onOpenChange={() => setSelectedProduct(null)}
       >
-        <DialogContent className="sm:max-w-[550px]">
+        <DialogContent className="sm:max-w-[550px] lg:max-w-[600px] max-h-[98vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-2xl">
               <Package className="h-6 w-6 text-primary" />
               Detalles del Producto
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 mt-4">
-            <h3 className="text-xl font-semibold text-primary">
-              {selectedProduct?.nombre || "Producto sin nombre"}
-            </h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <p className="flex items-center gap-2">
-                  <Barcode className="h-4 w-4 text-muted-foreground" />
-                  <strong>Código:</strong>{" "}
-                  {selectedProduct?.codigoProducto || "No disponible"}
-                </p>
-                <p className="flex items-center gap-2">
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                  <strong>Precio:</strong>{" "}
-                  {selectedProduct?.precio !== undefined
-                    ? `Q${selectedProduct.precio.toFixed(2)}`
-                    : "No disponible"}
-                </p>
+
+          <div className="flex flex-col gap-4 mt-4">
+            {/* Carrusel centrado y cuadrado */}
+            {selectedProduct?.imagenes && (
+              <div className="flex justify-center">
+                <ProductImageCarousel
+                  images={selectedProduct.imagenes}
+                  productName={selectedProduct.nombre}
+                />
               </div>
-              <div className="space-y-2">
-                <p className="flex items-start gap-2">
-                  <FileText className="h-4 w-4 text-muted-foreground mt-1" />
-                  <span>
-                    <strong>Descripción:</strong>
-                    <br />
-                    {selectedProduct?.descripcion || "No disponible"}
-                  </span>
-                </p>
+            )}
+
+            {selectedProduct && (
+              <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
+                <h3 className="text-xl font-semibold text-primary">
+                  {selectedProduct?.nombre || "Producto sin nombre"}
+                </h3>
+
+                {/* Detalles del producto */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <p className="flex items-center gap-2">
+                      <Barcode className="h-4 w-4 text-muted-foreground" />
+                      <strong>Código:</strong>{" "}
+                      {selectedProduct?.codigoProducto || "No disponible"}
+                    </p>
+                    <p className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      <strong>Precio:</strong>{" "}
+                      {selectedProduct?.precio !== undefined
+                        ? `${formatearMoneda(selectedProduct.precio)}`
+                        : "No disponible"}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="flex items-start gap-2">
+                      <FileText className="h-4 w-4 text-muted-foreground mt-1" />
+                      <span>
+                        <strong>Descripción:</strong>
+                        <br />
+                        {selectedProduct?.descripcion || "No disponible"}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Categorías */}
+                <div>
+                  <strong className="flex items-center gap-2 mb-2">
+                    <Tags className="h-4 w-4 text-muted-foreground" />
+                    Categorías:
+                  </strong>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedProduct?.categorias?.length > 0
+                      ? selectedProduct.categorias.map((cat, index) => (
+                          <Badge key={index} variant="secondary">
+                            {cat.categoria.nombre}
+                          </Badge>
+                        ))
+                      : "Sin categorías"}
+                  </div>
+                </div>
+
+                {/* Stock */}
+                <div className="flex items-center gap-2">
+                  <ShoppingCart className="h-5 w-5 text-muted-foreground" />
+                  <Badge
+                    variant={
+                      selectedProduct?.stock?.cantidad > 0
+                        ? "outline"
+                        : "destructive"
+                    }
+                    className="text-sm py-1 px-2"
+                  >
+                    {selectedProduct?.stock?.cantidad > 0
+                      ? `En Stock (${selectedProduct.stock.cantidad})`
+                      : "Fuera de Stock (0)"}
+                  </Badge>
+                </div>
               </div>
-            </div>
-            <div>
-              <strong className="flex items-center gap-2 mb-2">
-                <Tags className="h-4 w-4 text-muted-foreground" />
-                Categorías:
-              </strong>
-              <div className="flex flex-wrap gap-2">
-                {selectedProduct?.categorias &&
-                selectedProduct.categorias.length > 0
-                  ? selectedProduct.categorias.map((cat, index) => (
-                      <Badge key={index} variant="secondary">
-                        {cat.categoria.nombre}
-                      </Badge>
-                    ))
-                  : "Sin categorías"}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <ShoppingCart className="h-5 w-5 text-muted-foreground" />
-              <Badge
-                variant={
-                  selectedProduct?.stock?.cantidad &&
-                  selectedProduct.stock.cantidad > 0
-                    ? "outline"
-                    : "destructive"
-                }
-                className="text-sm py-1 px-2"
-              >
-                {selectedProduct?.stock?.cantidad &&
-                selectedProduct.stock.cantidad > 0
-                  ? `En Stock (${selectedProduct.stock.cantidad})`
-                  : "Fuera de Stock (0)"}
-              </Badge>
-            </div>
+            )}
+            {/* Contenido principal con scroll si es necesario */}
           </div>
+
           <DialogFooter>
             <DialogClose asChild>
               <Button variant="outline" className="flex items-center gap-2">
@@ -739,6 +1039,132 @@ export default function ViewProducts() {
                 Cerrar
               </Button>
             </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      ;{/* DIALOG PARA ACTUALIZAR LAS NUEVAS IMAGENES */}
+      <Dialog open={showAddImageDialog} onOpenChange={setShowAddImageDialog}>
+        <DialogContent className="max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Subir imágenes</DialogTitle>
+          </DialogHeader>
+
+          <div className="p-4 flex-1 overflow-auto">
+            <div
+              {...getRootProps()}
+              className="border p-4 rounded-md cursor-pointer text-center"
+            >
+              <input {...getInputProps()} />
+              <p>Arrastra una imagen aquí o haz clic para seleccionarla</p>
+            </div>
+
+            {selectedImage && showCropper && (
+              <div className="relative w-full h-64 mt-4">
+                <Cropper
+                  image={selectedImage}
+                  crop={crop}
+                  zoom={zoom}
+                  onCropChange={setCrop}
+                  onCropComplete={onCropComplete}
+                  onZoomChange={setZoom}
+                  cropShape="rect"
+                  showGrid={true}
+                />
+              </div>
+            )}
+
+            <div className="flex justify-center gap-4 mt-4">
+              {showCropper && (
+                <>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setShowCropper(false);
+                      setSelectedImage(null);
+                      setCrop({ x: 0, y: 0 });
+                      setZoom(1);
+                      setCroppingArea(null);
+                    }}
+                    className="bg-gray-500"
+                  >
+                    Cancelar
+                  </Button>
+
+                  <Button
+                    type="button"
+                    onClick={handleCropImage}
+                    className="bg-blue-500"
+                  >
+                    Recortar y Guardar
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant={"destructive"}
+                    onClick={handleUseFullImage}
+                    className="bg-green-500"
+                  >
+                    Usar imagen completa
+                  </Button>
+                </>
+              )}
+              {!showCropper && selectedImage && (
+                <Button
+                  type="button"
+                  variant={"destructive"}
+                  onClick={handleUseFullImage}
+                  className="bg-green-500"
+                >
+                  Usar imagen completa
+                </Button>
+              )}
+            </div>
+
+            <div className="p-4">
+              <p className="text-sm font-semibold mb-2">Imágenes a subir:</p>
+              <div className="grid grid-cols-3 gap-4 max-h-[300px] overflow-auto">
+                {newImages.map((img, index) => (
+                  <Card key={index} className="overflow-hidden">
+                    <CardContent className="p-0 relative group">
+                      <img
+                        src={img.image || "/placeholder.svg"}
+                        alt="Preview"
+                        className="w-full h-32 object-cover"
+                      />
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                        onClick={() => handleRemoveImage(index)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Footer fijo abajo */}
+          <DialogFooter
+            className="flex justify-between bg-white 
+          dark:bg-transparent
+          py-4 border-t"
+          >
+            <DialogClose asChild>
+              <Button variant="outline" className="flex items-center gap-2">
+                <X className="h-4 w-4" />
+                Cancelar
+              </Button>
+            </DialogClose>
+            <Button
+              onClick={handleConfirmUpload}
+              className="flex items-center gap-2"
+            >
+              <Save className="h-4 w-4" />
+              Confirmar subida
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

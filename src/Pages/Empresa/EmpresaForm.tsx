@@ -97,7 +97,7 @@ const EmpresaForm: React.FC = () => {
 
   return (
     <div className="container mx-auto py-10">
-      <Card className="w-full max-w-2xl mx-auto">
+      <Card className="w-full max-w-2xl mx-auto shadow-xl">
         <CardHeader>
           <CardTitle className="text-2xl">Información de la Empresa</CardTitle>
           <CardDescription>

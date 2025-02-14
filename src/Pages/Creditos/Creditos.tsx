@@ -148,6 +148,7 @@ interface nuevoPago {
   creditoId: number | undefined;
   monto: number | undefined;
   metodoPago: MetodoPago;
+  ventaId: number | undefined;
 }
 
 function Creditos() {
@@ -164,6 +165,7 @@ function Creditos() {
     creditoId: selectedCredit?.id,
     monto: 0,
     metodoPago: "CONTADO",
+    ventaId: 0,
   });
   const [openDeletCredit, setOpenDeletCredit] = useState(false);
   const [adminPassword, setAdminPasssword] = useState("");
@@ -196,6 +198,7 @@ function Creditos() {
         creditoId: selectedCredit.id,
         monto: 0,
         metodoPago: "CONTADO",
+        ventaId: selectedCredit.ventaId,
       });
       setIsDetailOpen(false);
 
@@ -226,6 +229,7 @@ function Creditos() {
         monto: newPayment.monto,
         metodoPago: newPayment.metodoPago,
         creditoId: newPayment.creditoId,
+        ventaId: newPayment.ventaId,
       });
 
       if (response.status === 200 || response.status === 201) {

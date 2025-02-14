@@ -78,6 +78,13 @@ import {
   ShoppingCart,
 } from "lucide-react";
 
+import { MultiSelect } from "react-multi-select-component";
+
+interface OpcionInteres {
+  label: string;
+  value: string;
+}
+
 export interface Ubicacion {
   id: number;
   latitud: number;
@@ -140,8 +147,20 @@ export default function ClientesList() {
     municipioId: "",
     volumenCompra: "",
     presupuestoMensual: "",
+    intereses: [] as string[], // Nuevo filtro de intereses
   });
   const [searchQuery, setSearchQuery] = useState("");
+  const opcionesIntereses: OpcionInteres[] = [
+    { label: "Ropa de Mujer", value: "Ropa de Mujer" },
+    { label: "Ropa de Hombre", value: "Ropa de Hombre" },
+    { label: "Ropa Infantil", value: "Ropa Infantil" },
+    { label: "Accesorios", value: "Accesorios" },
+    { label: "Calzado", value: "Calzado" },
+    { label: "Ropa Deportiva", value: "Ropa Deportiva" },
+    { label: "Ropa Formal", value: "Ropa Formal" },
+    { label: "Ropa de Trabajo", value: "Ropa de Trabajo" },
+    { label: "Ropa de Marca", value: "Ropa de Marca" },
+  ];
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
   };
@@ -238,6 +257,45 @@ export default function ClientesList() {
   };
 
   // Aplicar filtros a los clientes
+  // useEffect(() => {
+  //   if (customers) {
+  //     const filtered = customers.filter((cliente) => {
+  //       const matchesSearch =
+  //         searchQuery === "" ||
+  //         (cliente.nombre?.toLowerCase() || "").includes(
+  //           searchQuery.toLowerCase()
+  //         ) ||
+  //         (cliente.apellido?.toLowerCase() || "").includes(
+  //           searchQuery.toLowerCase()
+  //         ) ||
+  //         (
+  //           (cliente.nombre?.toLowerCase() || "") +
+  //           " " +
+  //           (cliente.apellido?.toLowerCase() || "")
+  //         ).includes(searchQuery.toLowerCase()) ||
+  //         (cliente.telefono?.toLowerCase() || "").includes(
+  //           searchQuery.toLowerCase()
+  //         ) ||
+  //         (cliente.correo?.toLowerCase() || "").includes(
+  //           searchQuery.toLowerCase()
+  //         );
+
+  //       return (
+  //         matchesSearch &&
+  //         (filtros.departamentoId === "" ||
+  //           cliente.departamentoId === Number(filtros.departamentoId)) &&
+  //         (filtros.municipioId === "" ||
+  //           cliente.municipioId === Number(filtros.municipioId)) &&
+  //         (filtros.volumenCompra === "" ||
+  //           cliente.volumenCompra === filtros.volumenCompra) &&
+  //         (filtros.presupuestoMensual === "" ||
+  //           cliente.presupuestoMensual === filtros.presupuestoMensual)
+  //       );
+  //     });
+  //     setFilteredCustomers(filtered);
+  //   }
+  // }, [filtros, searchQuery, customers]);
+
   useEffect(() => {
     if (customers) {
       const filtered = customers.filter((cliente) => {
@@ -261,8 +319,16 @@ export default function ClientesList() {
             searchQuery.toLowerCase()
           );
 
+        // Verifica si el cliente tiene al menos un interés seleccionado
+        const matchesInterests =
+          filtros.intereses.length === 0 ||
+          filtros.intereses.some((interes) =>
+            cliente.categoriasInteres.includes(interes)
+          );
+
         return (
           matchesSearch &&
+          matchesInterests && // Aplicamos el filtro de intereses
           (filtros.departamentoId === "" ||
             cliente.departamentoId === Number(filtros.departamentoId)) &&
           (filtros.municipioId === "" ||
@@ -289,6 +355,7 @@ export default function ClientesList() {
       municipioId: "",
       volumenCompra: "",
       presupuestoMensual: "",
+      intereses: [],
     });
     setFilteredCustomers(customers);
     setMunicipios([]);
@@ -333,8 +400,7 @@ export default function ClientesList() {
 
   return (
     <div className="container mx-auto p-4">
-      <h1 className="text-2xl font-bold mb-4">Lista de Clientes</h1>
-
+      <h1 className="text-2xl font-bold mb-4">Directorio de Clientes</h1>
       <Card className="w-full mb-6">
         <CardContent className="p-4">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
@@ -433,6 +499,29 @@ export default function ClientesList() {
               </SelectContent>
             </Select>
 
+            <MultiSelect
+              options={opcionesIntereses}
+              value={opcionesIntereses.filter((opcion) =>
+                filtros.intereses.includes(opcion.value)
+              )}
+              onChange={(selected: OpcionInteres[]) =>
+                setFiltros((prev) => ({
+                  ...prev,
+                  intereses: selected.map((item) => item.value),
+                }))
+              }
+              labelledBy="Seleccionar Intereses"
+              className="text-black"
+              overrideStrings={{
+                allItemsAreSelected: "Todos los elementos están seleccionados",
+                clearSearch: "Limpiar búsqueda",
+                noOptions: "No hay opciones",
+                search: "Buscar...",
+                selectAll: "Seleccionar todo",
+                selectSomeItems: "Selecciona intereses...",
+              }}
+            />
+
             <Button
               onClick={handleLimpiarFiltro}
               variant="outline"
@@ -448,10 +537,16 @@ export default function ClientesList() {
       <div className="grid grid-cols-1 gap-4">
         <Card className="w-full shadow-xl">
           <CardHeader>
-            <CardTitle className="text-2xl font-bold flex items-center gap-2">
-              <User className="h-6 w-6" />
-              Lista de Clientes
+            <CardTitle className="text-2xl font-bold flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <User className="h-6 w-6" />
+                Lista de Clientes
+              </div>
+              <span className="font-bold">
+                {filteredCustomers?.length} resultados
+              </span>
             </CardTitle>
+
             <CardDescription>
               Gestiona y visualiza la información de tus clientes
             </CardDescription>
