@@ -197,6 +197,7 @@ export default function RegistroVisita() {
       );
 
       if (response.status === 201) {
+        setOpenConfirmVisit(false);
         setVisitaActual(response.data);
         toast.success("Registro de visita iniciado");
         setTimeout(() => window.location.reload(), 200);
@@ -275,6 +276,8 @@ export default function RegistroVisita() {
 
   const [openConfirmFinish, setOpenConfirmFinish] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [openConfirmVisit, setOpenConfirmVisit] = useState(false);
 
   return (
     <Card className="w-full max-w-4xl mx-auto shadow-xl">
@@ -459,7 +462,7 @@ export default function RegistroVisita() {
           </>
         ) : (
           <Button
-            onClick={iniciarVisita}
+            onClick={() => [setOpenConfirmVisit(true)]}
             disabled={
               !nuevaVisita.clienteId ||
               !nuevaVisita.motivoVisita ||
@@ -572,6 +575,36 @@ export default function RegistroVisita() {
                   Finalizar Visita
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openConfirmVisit} onOpenChange={setOpenConfirmVisit}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-center text-xl font-semibold text-primary">
+              <AlertTriangle className="w-6 h-6 mr-2 text-warning" />
+              Confirmar Inicio de Visita
+            </DialogTitle>
+          </DialogHeader>
+          <div className="mt-4 text-center">
+            <AlertTriangle className="w-12 h-12 mx-auto text-warning mb-4" />
+            <p className="text-sm text-muted-foreground">
+              ¿Estás seguro de que deseas iniciar esta visita con estos datos?
+            </p>
+          </div>
+          <DialogFooter className="mt-6 flex flex-col sm:flex-row gap-3">
+            <Button
+              variant="destructive"
+              onClick={() => setOpenConfirmFinish(false)}
+              className="w-full "
+            >
+              <X className="w-4 h-4 mr-2" />
+              Cancelar
+            </Button>
+            <Button className="w-full " onClick={iniciarVisita}>
+              Si, continuar
             </Button>
           </DialogFooter>
         </DialogContent>

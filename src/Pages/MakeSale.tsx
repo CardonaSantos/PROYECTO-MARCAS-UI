@@ -52,9 +52,9 @@ import {
 import { toast } from "sonner";
 import axios from "axios";
 import { CategoriaFiltrar } from "../Utils/Types/CategoyFilter";
-import { jwtDecode } from "jwt-decode";
+// import { jwtDecode } from "jwt-decode";
 
-import { useSocket } from "@/Context/SocketProvider ";
+// import { useSocket } from "@/Context/SocketProvider ";
 import { motion } from "framer-motion";
 // import { Cliente, Descuento } from "../Utils/Types/CustomersWithDiscount";
 const API_URL = import.meta.env.VITE_API_URL;
@@ -143,12 +143,12 @@ interface Descuento {
   creadoEn: string;
   actualizadoEn: string;
 }
-interface UserTokenInfo {
-  nombre: string;
-  correo: string;
-  rol: string;
-  sub: number;
-}
+// interface UserTokenInfo {
+//   nombre: string;
+//   correo: string;
+//   rol: string;
+//   sub: number;
+// }
 
 interface Cliente2 {
   actualizadoEn: string;
@@ -179,22 +179,23 @@ interface Visita2 {
 }
 
 export default function MakeSale() {
+  const userId = useStore((state) => state.userId) ?? 0;
   const empresaId = useStore((state) => state.sucursalId) ?? 0;
-  const [tokenUser, setTokenUser] = useState<UserTokenInfo | null>(null);
+  // const [tokenUser, setTokenUser] = useState<UserTokenInfo | null>(null);
 
-  useEffect(() => {
-    const token = localStorage.getItem("authToken");
+  // useEffect(() => {
+  //   const token = localStorage.getItem("authToken");
 
-    if (token) {
-      try {
-        const decodedToken = jwtDecode<UserTokenInfo>(token);
-        setTokenUser(decodedToken);
-      } catch (error) {
-        console.error("Error decoding token:", error);
-      }
-    }
-  }, []);
-  console.log("El token user es: ", tokenUser);
+  //   if (token) {
+  //     try {
+  //       const decodedToken = jwtDecode<UserTokenInfo>(token);
+  //       setTokenUser(decodedToken);
+  //     } catch (error) {
+  //       console.error("Error decoding token:", error);
+  //     }
+  //   }
+  // }, []);
+  // console.log("El token user es: ", tokenUser);
 
   // Estados
   const [searchTerm, setSearchTerm] = useState("");
@@ -216,7 +217,7 @@ export default function MakeSale() {
   const [categoria, setCategoria] = useState<CategoriaFiltrar[]>([]);
 
   const [showCartModal, setShowCartModal] = useState(false);
-  const socket = useSocket();
+  // const socket = useSocket();
 
   // 📌 Estados para productos y paginación
   const [products, setProducts] = useState<Producto[]>([]);
@@ -235,11 +236,11 @@ export default function MakeSale() {
           `${API_URL}/product?page=${newPage}&limit=${itemsPerPage}`
         );
 
-        console.log(
-          "Productos recibidos:",
-          response.data.products.length,
-          response.data.products
-        );
+        // console.log(
+        //   "Productos recibidos:",
+        //   response.data.products.length,
+        //   response.data.products
+        // );
 
         if (response.status === 200 && Array.isArray(response.data.products)) {
           setProducts((prev) => {
@@ -290,19 +291,19 @@ export default function MakeSale() {
   }, [isFetching, page, totalPages]);
 
   ///===============================
-  const getCustomers = async () => {
-    try {
-      const response = await axios.get(
-        `${API_URL}/customers/all-customers-with-discount`
-      );
-      if (response.status === 200) {
-        setCustomers(response.data);
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("No se encontraron clientes");
-    }
-  };
+  // const getCustomers = async () => {
+  //   try {
+  //     const response = await axios.get(
+  //       `${API_URL}/customers/all-customers-with-discount`
+  //     );
+  //     if (response.status === 200) {
+  //       setCustomers(response.data);
+  //     }
+  //   } catch (error) {
+  //     console.error(error);
+  //     toast.error("No se encontraron clientes");
+  //   }
+  // };
 
   // Obtener clientes
   useEffect(() => {
@@ -408,7 +409,7 @@ export default function MakeSale() {
         ))
   );
 
-  console.log(cart);
+  // console.log(cart);
 
   type SaleData = {
     // Campos para ventas normales (obligatorios)
@@ -447,7 +448,7 @@ export default function MakeSale() {
       empresaId: empresaId,
       descuento: selectedDiscount?.porcentaje,
       clienteId: selectedCustomer?.id,
-      vendedorId: tokenUser?.sub,
+      vendedorId: userId,
       productos: cart.map((item) => ({
         productoId: item.id,
         cantidad: item.quantity,
@@ -501,7 +502,7 @@ export default function MakeSale() {
   const sendCartData = async (cart: (Producto & { quantity: number })[]) => {
     const formateado: SaleData = formatoCartData(cart);
 
-    console.log("Data a enviar:", formateado);
+    // console.log("Data a enviar:", formateado);
 
     if (
       !formateado.clienteId ||
@@ -557,10 +558,10 @@ export default function MakeSale() {
 
   useEffect(() => {
     const getRegistOpen = async () => {
-      if (tokenUser?.sub) {
+      if (userId) {
         try {
           const response = await axios.get(
-            `${API_URL}/date/regist-open/${tokenUser?.sub}`
+            `${API_URL}/date/regist-open/${userId}`
           );
 
           if (response.status === 200) {
@@ -588,16 +589,16 @@ export default function MakeSale() {
       }
     };
 
-    if (tokenUser && tokenUser.sub) {
+    if (userId && userId) {
       getRegistOpen();
     }
-  }, [tokenUser]);
+  }, [userId]);
 
-  console.log("El registro abierto es: ", registroAbierto);
-  console.log(
-    "El id del cliente del registro vsita es: ",
-    registroAbierto?.clienteId
-  );
+  // console.log("El registro abierto es: ", registroAbierto);
+  // console.log(
+  //   "El id del cliente del registro vsita es: ",
+  //   registroAbierto?.clienteId
+  // );
 
   // async function realizarVentaConVisita(
   //   cart: (Producto & { quantity: number })[]
@@ -672,7 +673,7 @@ export default function MakeSale() {
   ) {
     const formateado = formatoCartData(cart);
 
-    console.log("La data a enviar es: ", formateado);
+    // console.log("La data a enviar es: ", formateado);
 
     if (
       !formateado.clienteId ||
@@ -705,10 +706,10 @@ export default function MakeSale() {
       }
     }
 
-    console.log("Datos a enviar:", {
-      ...formateado,
-      registroVisitaId: registroAbierto?.id,
-    });
+    // console.log("Datos a enviar:", {
+    //   ...formateado,
+    //   registroVisitaId: registroAbierto?.id,
+    // });
 
     try {
       setIsSubmitting(true);
@@ -737,12 +738,12 @@ export default function MakeSale() {
     }
   }
 
-  console.log("El usuario seleccionado es: ", selectedCustomer);
+  // console.log("El usuario seleccionado es: ", selectedCustomer);
 
   //----------------------------------------------------------------
 
   const requestCustomDiscount = async () => {
-    if (!selectedCustomer?.id || !tokenUser?.sub || !descuento) {
+    if (!selectedCustomer?.id || !userId || !descuento) {
       toast.warning("Faltan datos para la solicitud");
       return;
     }
@@ -752,14 +753,14 @@ export default function MakeSale() {
         {
           clienteId: selectedCustomer?.id, // ID del cliente
           justificacion: nota || "", // Justificación o motivo del descuento
-          usuarioId: tokenUser?.sub, // ID del usuario/vendedor
+          usuarioId: userId, // ID del usuario/vendedor
           descuentoSolicitado: Number(descuento), // Porcentaje del descuento solicitado
           motivo: nota || "Sin motivo adicional", // Motivo adicional
         }
       );
 
       if (response.status == 200 || response.status == 201) {
-        console.log("Solicitud enviada con éxito");
+        // console.log("Solicitud enviada con éxito");
         toast.success("Solicitud enviada. Esperando respuesta...");
         setNota("");
         setDescuento(0);
@@ -771,25 +772,25 @@ export default function MakeSale() {
     }
   };
 
-  useEffect(() => {
-    if (socket) {
-      // Verifica si el rol es VENDEDOR
-      // Escuchar el evento específico para vendedores
-      socket.on("newNotificationToSeller", (newNotification) => {
-        console.log(
-          "La notificación entrante para vendedor es: ",
-          newNotification
-        );
+  // useEffect(() => {
+  //   if (socket) {
+  //     // Verifica si el rol es VENDEDOR
+  //     // Escuchar el evento específico para vendedores
+  //     socket.on("newNotificationToSeller", (newNotification) => {
+  //       console.log(
+  //         "La notificación entrante para vendedor es: ",
+  //         newNotification
+  //       );
 
-        getCustomers();
-      });
+  //       getCustomers();
+  //     });
 
-      // Limpiar el evento al desmontar el componente
-      return () => {
-        socket.off("newNotificationToSeller"); // Limpiar el evento específico para vendedores
-      };
-    }
-  }, [socket, tokenUser]); // Añadir tokenUser como dependencia para actualizar si cambia
+  //     // Limpiar el evento al desmontar el componente
+  //     return () => {
+  //       socket.off("newNotificationToSeller"); // Limpiar el evento específico para vendedores
+  //     };
+  //   }
+  // }, [socket, userId]); // Añadir tokenUser como dependencia para actualizar si cambia
 
   // Opciones de ejemplo para el selector (customers)
   const options = customers.map((customer) => ({
@@ -1196,7 +1197,7 @@ export default function MakeSale() {
                   </DialogDescription>
                 </DialogHeader>
 
-                <ScrollArea className="flex-grow mt-4 pr-4">
+                {/* <ScrollArea className="flex-grow mt-4 pr-4">
                   {cart.length === 0 ? (
                     <p className="text-gray-500 text-center py-4">
                       El carrito está vacío
@@ -1212,9 +1213,81 @@ export default function MakeSale() {
                             {item.nombre}
                           </p>
                           <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Q{item.precio.toFixed(2)}
+                            {formatearMoneda(item.precio)}
                           </p>
+
+                          <img
+                            src={
+                              item.imagenes.length > 0
+                                ? item.imagenes[0].url
+                                : placeholder
+                            }
+                          />
                         </div>
+                        <div className="flex items-center gap-10">
+                          <Input
+                            type="number"
+                            min="1"
+                            max={item.stock?.cantidad}
+                            value={item.quantity}
+                            onChange={(e) => {
+                              const value = e.target.value
+                                ? Number.parseInt(e.target.value)
+                                : 1;
+                              updateQuantity(item.id, value);
+                            }}
+                            className="w-16 text-center"
+                            aria-label={`Cantidad de ${item.nombre}`}
+                          />
+                          <Button
+                            variant="destructive"
+                            size="icon"
+                            onClick={() => removeFromCart(item.id)}
+                            aria-label={`Eliminar ${item.nombre} del carrito`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </ScrollArea> */}
+
+                <ScrollArea className="flex-grow mt-4 pr-4">
+                  {cart.length === 0 ? (
+                    <p className="text-gray-500 text-center py-4">
+                      El carrito está vacío
+                    </p>
+                  ) : (
+                    cart.map((item) => (
+                      <div
+                        key={item.id}
+                        className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 pb-4 border-b border-gray-200 dark:border-gray-700"
+                      >
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-2 sm:mb-0">
+                          {/* Imagen del producto con placeholder si no tiene imágenes */}
+                          <img
+                            src={
+                              item.imagenes.length > 0
+                                ? item.imagenes[0].url
+                                : placeholder
+                            }
+                            alt={item.nombre}
+                            className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-md object-cover aspect-square"
+                          />
+
+                          {/* Nombre y precio */}
+                          <div>
+                            <p className="font-semibold text-gray-800 dark:text-gray-200">
+                              {item.nombre}
+                            </p>
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                              {formatearMoneda(item.precio)}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Controles de cantidad y eliminación */}
                         <div className="flex items-center gap-10">
                           <Input
                             type="number"
@@ -1615,26 +1688,39 @@ export default function MakeSale() {
                         }
                       >
                         {product.stock && product.stock.cantidad > 0
-                          ? "En stock"
+                          ? `${product.stock.cantidad} En stock`
                           : "Agotado"}
                       </Badge>
                     </div>
                   </CardContent>
+
                   <CardFooter className="p-4">
                     <Button
-                      onClick={() => addToCart(product)}
+                      onClick={() => {
+                        if (cart.some((prod) => prod.id === product.id)) {
+                          removeFromCart(product.id); // Si está en el carrito, lo elimina
+                        } else {
+                          addToCart(product); // Si no está, lo añade
+                        }
+                      }}
                       disabled={!product.stock || product.stock.cantidad === 0}
-                      className="w-full"
+                      className={`w-full transition-all duration-200 font-semibold text-white rounded-lg shadow-md ${
+                        cart.some((prod) => prod.id === product.id)
+                          ? "bg-red-500 hover:bg-red-600" // Rojo vibrante si ya está en el carrito (eliminar)
+                          : "bg-blue-700 hover:bg-blue-800" // Azul brillante si no está (añadir)
+                      }`}
                     >
                       {cart.some((prod) => prod.id === product.id) ? (
                         <>
-                          <Check className="mr-2 h-4 w-4" />
-                          En el carrito
+                          <Trash2 className="mr-2 h-4 w-4" />{" "}
+                          {/* Icono de eliminar */}
+                          Quitar del carrito
                         </>
                       ) : (
                         <>
-                          <Plus className="mr-2 h-4 w-4" />
-                          Añadir al Carrito
+                          <Plus className="mr-2 h-4 w-4" />{" "}
+                          {/* Icono de añadir */}
+                          Añadir al carrito
                         </>
                       )}
                     </Button>

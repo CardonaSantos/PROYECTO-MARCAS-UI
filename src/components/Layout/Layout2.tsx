@@ -67,6 +67,7 @@ export default function Layout2({ children }: LayoutProps) {
   const socket = useSocket(); // Hook que retorna la instancia del WebSocket
   // const userRol = useStore((state) => state.userRol);
   const userId = useStore((state) => state.userId) ?? 0;
+  const userRol = useStore((state) => state.userRol);
   const [tokenUser, setTokenUser] = useState<UserTokenInfo | null>(null);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -103,36 +104,55 @@ export default function Layout2({ children }: LayoutProps) {
   }, []);
 
   // Función para enviar ubicación del usuario
-  const sendMyLocation = async () => {
-    if (!navigator.geolocation) {
-      console.error("Geolocation no está disponible en este navegador.");
-      toast.info("Geolocation no está disponible en este navegador.");
-      return;
-    }
+  // const sendMyLocation = async () => {
+  //   if (!navigator.geolocation) {
+  //     console.error("Geolocation no está disponible en este navegador.");
+  //     toast.info("Geolocation no está disponible en este navegador.");
+  //     return;
+  //   }
 
-    navigator.geolocation.getCurrentPosition((position) => {
-      if (socket && tokenUser) {
+  //   navigator.geolocation.getCurrentPosition((position) => {
+  //     if (socket && userId) {
+  //       const locationData = {
+  //         latitud: position.coords.latitude,
+  //         longitud: position.coords.longitude,
+  //         usuarioId: userId,
+  //       };
+  //       // console.log("Enviando ubicación:", locationData);
+  //       socket.emit("sendLocation", locationData);
+  //     }
+  //   });
+  // };
+
+  // Enviar ubicación cada 5 segundos si el usuario es vendedor
+  // useEffect(() => {
+  //   if (socket && userRol === "VENDEDOR") {
+  //     const interval = setInterval(() => {
+  //       sendMyLocation();
+  //     }, 3000);
+
+  //     return () => clearInterval(interval); // Limpia correctamente el intervalo
+  //   }
+  // }, [socket, userId]);
+
+  useEffect(() => {
+    if (!navigator.geolocation || !socket || userRol !== "VENDEDOR") return;
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
         const locationData = {
           latitud: position.coords.latitude,
           longitud: position.coords.longitude,
-          usuarioId: tokenUser.sub,
+          usuarioId: userId,
         };
-        // console.log("Enviando ubicación:", locationData);
         socket.emit("sendLocation", locationData);
-      }
-    });
-  };
+      },
+      (error) => console.error("Error obteniendo ubicación", error),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+    );
 
-  // Enviar ubicación cada 5 segundos si el usuario es vendedor
-  useEffect(() => {
-    if (socket && tokenUser?.rol === "VENDEDOR") {
-      const interval = setInterval(() => {
-        sendMyLocation();
-      }, 5000);
-
-      return () => clearInterval(interval); // Limpia correctamente el intervalo
-    }
-  }, [socket, tokenUser]);
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [socket, userId]);
 
   // Obtener notificaciones desde el backend
   const getNoti = async () => {
@@ -155,34 +175,6 @@ export default function Layout2({ children }: LayoutProps) {
     getNoti();
   }, [tokenUser]);
 
-  //USEEFFECT DE ADMINS
-  // useEffect(() => {
-  //   if (!socket) return;
-
-  //   const handleAdminNotification = (newNotification: Notification) => {
-  //     setNotifications((prev) => [...prev, newNotification]);
-  //     if (Notification.permission !== "granted") {
-  //       Notification.requestPermission();
-  //     }
-
-  //     if (Notification.permission === "granted") {
-  //       new Notification("Nueva Notificación", {
-  //         body: newNotification.mensaje,
-  //         icon: logoEmpresa,
-  //         badge: logoEmpresa,
-  //       });
-  //     }
-
-  //     const audioNotificacion = new Audio(message1);
-  //     audioNotificacion.play();
-  //   };
-
-  //   socket.on("newNotification", handleAdminNotification);
-  //   return () => {
-  //     socket.off("newNotification", handleAdminNotification);
-  //   };
-  // }, [socket]);
-  //ESTO YA FUNCIONA, TODO BIEN :)))
   useEffect(() => {
     if (!socket || !userId) return;
 
