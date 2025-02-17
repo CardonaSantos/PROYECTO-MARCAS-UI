@@ -255,7 +255,7 @@ export default function RegistroVisita() {
           }
         );
         toast.success("Registro de visita cancelado");
-        setTimeout(() => window.location.reload(), 1000);
+        setTimeout(() => window.location.reload(), 500);
       } catch (error) {
         console.error("Error al cancelar la visita:", error);
         toast.error("Error al cancelar la visita");
@@ -497,6 +497,7 @@ export default function RegistroVisita() {
 
           <DialogFooter>
             <Button
+              className="w-full"
               variant="ghost"
               onClick={() => setOpenCloseVisita(false)}
               disabled={truncarClose}
@@ -504,6 +505,7 @@ export default function RegistroVisita() {
               Cerrar
             </Button>
             <Button
+              className="w-full"
               variant="destructive"
               onClick={cancelarVisita}
               disabled={truncarClose || !observacionesClose.trim()}
@@ -597,7 +599,7 @@ export default function RegistroVisita() {
           <DialogFooter className="mt-6 flex flex-col sm:flex-row gap-3">
             <Button
               variant="destructive"
-              onClick={() => setOpenConfirmFinish(false)}
+              onClick={() => setOpenConfirmVisit(false)}
               className="w-full "
             >
               <X className="w-4 h-4 mr-2" />
