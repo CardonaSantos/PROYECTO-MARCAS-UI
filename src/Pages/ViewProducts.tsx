@@ -79,6 +79,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useDropzone } from "react-dropzone";
 import { getCroppedImg } from "./Tools/cropImage";
 import Cropper from "react-easy-crop";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const API_URL = import.meta.env.VITE_API_URL;
 // Mock product data
@@ -96,6 +97,7 @@ type Producto = {
   codigoProducto: string;
   descripcion: string;
   precio: number;
+  costo?: number;
   categorias: { categoria: { id: number; nombre: string } }[]; // Incluyo el ID de categoría
   stock: { cantidad: number };
   imagenes: Imagen[]; // Nueva propiedad
@@ -109,6 +111,7 @@ interface ProductoEdit {
   descripcion: string;
   categoriaIds: number[]; // IDs de las categorías
   precio: number;
+  costo?: number;
   imagenes: Imagen[]; // Nueva propiedad
 }
 
@@ -133,6 +136,7 @@ export default function ViewProducts() {
     descripcion: "",
     categoriaIds: [],
     precio: 0,
+    costo: 0,
     imagenes: [],
   });
   const [showFilters, setShowFilters] = useState(false);
@@ -141,17 +145,21 @@ export default function ViewProducts() {
     priceRange: [0, 5000],
   });
 
+  const [isLoading, setIsLoading] = useState(false);
   // Obtener productos desde el API
   const getProducts = async () => {
     try {
+      setIsLoading(true);
       const response = await axios.get(
         `${API_URL}/product/get-product-to-inventary`
       );
       if (response.status === 200) {
         setProducts(response.data);
+        setIsLoading(false);
       }
     } catch (error) {
       console.error(error);
+      setIsLoading(false);
       toast.error("Error al cargar productos");
     }
   };
@@ -217,6 +225,7 @@ export default function ViewProducts() {
       descripcion: product.descripcion,
       categoriaIds: product.categorias.map((cat) => cat.categoria.id),
       precio: product.precio,
+      costo: product.costo,
       imagenes: product.imagenes,
     });
   };
@@ -256,6 +265,7 @@ export default function ViewProducts() {
           codigoProducto: editedProduct.codigoProducto,
           descripcion: editedProduct.descripcion,
           precio: editedProduct.precio,
+          precioCosto: editedProduct.costo,
         }
       );
 
@@ -273,6 +283,7 @@ export default function ViewProducts() {
           descripcion: "",
           categoriaIds: [],
           precio: 0,
+          costo: 0,
           imagenes: [],
         });
         setSelectedProduct(null); // Cierra el modal o panel de edición
@@ -284,7 +295,7 @@ export default function ViewProducts() {
   };
 
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 25;
+  const itemsPerPage = 50;
 
   // PAGINACIÓN
   const totalPages = Math.ceil((filteredProducts?.length || 0) / itemsPerPage);
@@ -577,6 +588,10 @@ export default function ViewProducts() {
           </div>
         </div>
       )}
+      <h2 className="text-base font-semibold my-4">
+        Productos encontrados: {filteredProducts.length}
+      </h2>
+
       <Card className="shadow-xl">
         <CardHeader>
           <CardTitle className="sr-only">Lista de Productos</CardTitle>
@@ -615,7 +630,34 @@ export default function ViewProducts() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {currentItems && currentItems.length > 0 ? (
+              {isLoading ? (
+                // Skeleton loading state
+                Array.from({ length: 5 }).map((_, index) => (
+                  <TableRow key={`skeleton-${index}`}>
+                    <TableCell>
+                      <Skeleton className="h-5 w-[120px]" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-5 w-[80px]" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-5 w-[70px]" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-5 w-[150px]" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-5 w-[100px]" />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Skeleton className="h-8 w-8 rounded" />
+                        <Skeleton className="h-8 w-8 rounded" />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : currentItems && currentItems.length > 0 ? (
                 currentItems.map((product) => (
                   <TableRow key={product.id}>
                     <TableCell className="font-medium">
@@ -625,10 +667,9 @@ export default function ViewProducts() {
                     <TableCell>{formatearMoneda(product.precio)}</TableCell>
                     <TableCell className="text-[11px]">
                       {product.categorias
-                        .map((cat) => cat.categoria.nombre) // Extraer los nombres de las categorías
-                        .join(", ")}{" "}
+                        .map((cat) => cat.categoria.nombre)
+                        .join(", ")}
                     </TableCell>
-
                     <TableCell>
                       {product?.stock?.cantidad > 0 ? (
                         <span className="text-black font-bold dark:text-white">
@@ -677,85 +718,89 @@ export default function ViewProducts() {
           </Table>
         </CardContent>
         <CardFooter className="flex justify-center py-4">
-          <Pagination aria-label="Navegación de páginas de productos">
-            <PaginationContent>
-              <PaginationItem>
-                <Button
-                  onClick={() => onPageChange(1)}
-                  aria-label="Ir a la primera página"
-                >
-                  <ChevronsLeft className="h-4 w-4" aria-hidden="true" />
-                </Button>
-              </PaginationItem>
-              <PaginationItem>
-                <PaginationPrevious
-                  onClick={() => onPageChange(Math.max(1, currentPage - 1))}
-                />
-              </PaginationItem>
+          {!isLoading && (
+            <Pagination aria-label="Navegación de páginas de productos">
+              <PaginationContent>
+                <PaginationItem>
+                  <Button
+                    onClick={() => onPageChange(1)}
+                    aria-label="Ir a la primera página"
+                  >
+                    <ChevronsLeft className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </PaginationItem>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+                  />
+                </PaginationItem>
 
-              {currentPage > 3 && (
-                <>
-                  <PaginationItem>
-                    <PaginationLink onClick={() => onPageChange(1)}>
-                      1
-                    </PaginationLink>
-                  </PaginationItem>
-                  <PaginationItem>
-                    <span className="text-muted-foreground">...</span>
-                  </PaginationItem>
-                </>
-              )}
-
-              {Array.from({ length: totalPages }, (_, index) => {
-                const page = index + 1;
-                if (
-                  page === currentPage ||
-                  (page >= currentPage - 1 && page <= currentPage + 1)
-                ) {
-                  return (
-                    <PaginationItem key={index}>
-                      <PaginationLink
-                        onClick={() => onPageChange(page)}
-                        aria-current={page === currentPage ? "page" : undefined}
-                      >
-                        {page}
+                {currentPage > 3 && (
+                  <>
+                    <PaginationItem>
+                      <PaginationLink onClick={() => onPageChange(1)}>
+                        1
                       </PaginationLink>
                     </PaginationItem>
-                  );
-                }
-                return null;
-              })}
+                    <PaginationItem>
+                      <span className="text-muted-foreground">...</span>
+                    </PaginationItem>
+                  </>
+                )}
 
-              {currentPage < totalPages - 2 && (
-                <>
-                  <PaginationItem>
-                    <span className="text-muted-foreground">...</span>
-                  </PaginationItem>
-                  <PaginationItem>
-                    <PaginationLink onClick={() => onPageChange(totalPages)}>
-                      {totalPages}
-                    </PaginationLink>
-                  </PaginationItem>
-                </>
-              )}
-
-              <PaginationItem>
-                <PaginationNext
-                  onClick={() =>
-                    onPageChange(Math.min(totalPages, currentPage + 1))
+                {Array.from({ length: totalPages }, (_, index) => {
+                  const page = index + 1;
+                  if (
+                    page === currentPage ||
+                    (page >= currentPage - 1 && page <= currentPage + 1)
+                  ) {
+                    return (
+                      <PaginationItem key={index}>
+                        <PaginationLink
+                          onClick={() => onPageChange(page)}
+                          aria-current={
+                            page === currentPage ? "page" : undefined
+                          }
+                        >
+                          {page}
+                        </PaginationLink>
+                      </PaginationItem>
+                    );
                   }
-                />
-              </PaginationItem>
-              <PaginationItem>
-                <Button
-                  onClick={() => onPageChange(totalPages)}
-                  aria-label="Ir a la última página"
-                >
-                  <ChevronsRight className="h-4 w-4" aria-hidden="true" />
-                </Button>
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
+                  return null;
+                })}
+
+                {currentPage < totalPages - 2 && (
+                  <>
+                    <PaginationItem>
+                      <span className="text-muted-foreground">...</span>
+                    </PaginationItem>
+                    <PaginationItem>
+                      <PaginationLink onClick={() => onPageChange(totalPages)}>
+                        {totalPages}
+                      </PaginationLink>
+                    </PaginationItem>
+                  </>
+                )}
+
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() =>
+                      onPageChange(Math.min(totalPages, currentPage + 1))
+                    }
+                  />
+                </PaginationItem>
+                <PaginationItem>
+                  <Button
+                    onClick={() => onPageChange(totalPages)}
+                    aria-label="Ir a la última página"
+                  >
+                    <ChevronsRight className="h-4 w-4" aria-hidden="true" />
+                  </Button>
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
         </CardFooter>
       </Card>
       {/* DIALOG DE EDICION DE PRODUCTO */}
@@ -808,6 +853,25 @@ export default function ViewProducts() {
                   step="0.01"
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="costo" className="flex items-center gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  Precio Costo
+                </Label>
+                <Input
+                  id="costo"
+                  name="costo"
+                  type="number"
+                  value={editedProduct?.costo || ""}
+                  onChange={handleInputChange}
+                  required
+                  aria-required="true"
+                  min="0"
+                  step="0.01"
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label
                   htmlFor="codigoProducto"
@@ -981,6 +1045,14 @@ export default function ViewProducts() {
                         ? `${formatearMoneda(selectedProduct.precio)}`
                         : "No disponible"}
                     </p>
+
+                    <p className="flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                      <strong>Precio Costo:</strong>{" "}
+                      {selectedProduct?.costo !== undefined
+                        ? `${formatearMoneda(selectedProduct?.costo) ?? 0}`
+                        : "No disponible"}
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <p className="flex items-start gap-2">
@@ -1042,7 +1114,7 @@ export default function ViewProducts() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      ;{/* DIALOG PARA ACTUALIZAR LAS NUEVAS IMAGENES */}
+      {/* DIALOG PARA ACTUALIZAR LAS NUEVAS IMAGENES */}
       <Dialog open={showAddImageDialog} onOpenChange={setShowAddImageDialog}>
         <DialogContent className="max-h-[90vh] flex flex-col">
           <DialogHeader>

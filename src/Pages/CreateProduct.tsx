@@ -42,6 +42,7 @@ interface FormData {
   descripcion: string;
   categoriaIds: number[];
   precio: number;
+  precioCosto?: number;
   fotos: string[];
 }
 
@@ -74,8 +75,10 @@ export default function CreateProduct() {
     descripcion: "",
     categoriaIds: [],
     precio: 0,
+    precioCosto: 0,
     fotos: [],
   });
+  console.log("FormData: ", formData);
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -104,6 +107,7 @@ export default function CreateProduct() {
       categoriaIds: [],
       precio: 0,
       fotos: [],
+      precioCosto: 0,
     });
     setCroppedImages([]);
     setSelectedImage(null);
@@ -131,11 +135,6 @@ export default function CreateProduct() {
       ...formData,
       fotos: croppedImages, // Verifica si croppedImages tiene las imágenes esperadas
     });
-
-    if (formData.fotos.length <= 0) {
-      toast.warning("No hay fotos");
-      return;
-    }
 
     try {
       await toast.promise(
@@ -498,6 +497,43 @@ export default function CreateProduct() {
                 )}
               </div>
 
+              <div className="space-y-2">
+                <Label
+                  htmlFor="precioCosto"
+                  className="flex items-center gap-2"
+                >
+                  <DollarSign className="h-4 w-4" />
+                  Precio de Costo
+                </Label>
+                <Input
+                  id="precioCosto"
+                  name="precioCosto"
+                  type="number"
+                  value={formData.precioCosto}
+                  onChange={handleChange}
+                  required
+                  min="0"
+                  step="0.01"
+                  aria-describedby="precio-description"
+                  // aria-invalid={!!errors.precioCosto}
+                />
+                <p
+                  id="precio-description"
+                  className="text-sm text-muted-foreground"
+                >
+                  Ingrese el precio de costo producto.
+                </p>
+                {errors.precio && (
+                  <p
+                    role="alert"
+                    className="text-sm text-destructive flex items-center gap-1"
+                  >
+                    <AlertCircle className="h-4 w-4" />
+                    {errors.precio}
+                  </p>
+                )}
+              </div>
+
               {/* Área para subir imágenes */}
 
               {/* Área para subir imágenes */}
@@ -619,6 +655,13 @@ export default function CreateProduct() {
                 <Tags className="h-4 w-4 text-muted-foreground" />
                 <strong>Categorías:</strong> {getCategoryNames() || "N/A"}
               </p>
+
+              <p className="flex items-center gap-2">
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <strong>Precio Costo:</strong> Q
+                {parseFloat(`${formData.precioCosto || "0"}`).toFixed(2)}
+              </p>
+
               <p className="flex items-center gap-2">
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
                 <strong>Precio de venta:</strong> Q

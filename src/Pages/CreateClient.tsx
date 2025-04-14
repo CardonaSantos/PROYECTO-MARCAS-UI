@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 
 type FormData = {
+  descuentoInicial?: number; // Aquí se define como number
   nombre: string;
   apellido: string;
   correo: string;
@@ -74,6 +75,7 @@ export default function CreateClient() {
   const [municipios, setMunicipios] = useState<Municipio[]>([]);
 
   const [formData, setFormData] = useState<FormData>({
+    descuentoInicial: 0, //
     nombre: "",
     apellido: "",
     correo: "",
@@ -141,6 +143,7 @@ export default function CreateClient() {
         presupuestoMensual: formData.presupuestoMensual,
         preferenciaContacto: formData.preferenciaContacto,
         comentarios: formData.comentarios,
+        descuentoInicial: formData.descuentoInicial, //
       }); // Envía el objeto directamente
       if (response.status === 201) {
         toast.success("Cliente creado exitosamente");
@@ -562,6 +565,29 @@ export default function CreateClient() {
               onChange={handleInputChange}
               placeholder="Ingrese cualquier comentario adicional, nota o requisitos especiales"
               aria-label="Comentarios o notas adicionales"
+            />
+          </div>
+
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              <Tag className="h-5 w-5" />
+              Descuento Inicial (%)
+            </h2>
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              step={0.1}
+              name="descuentoInicial"
+              value={formData.descuentoInicial}
+              onChange={(e) =>
+                setFormData((prev) => ({
+                  ...prev,
+                  descuentoInicial: parseFloat(e.target.value) || 0,
+                }))
+              }
+              placeholder="Ej: 5.5"
+              aria-label="Porcentaje de descuento inicial"
             />
           </div>
 

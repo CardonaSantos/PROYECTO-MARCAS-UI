@@ -143,12 +143,6 @@ interface Descuento {
   creadoEn: string;
   actualizadoEn: string;
 }
-// interface UserTokenInfo {
-//   nombre: string;
-//   correo: string;
-//   rol: string;
-//   sub: number;
-// }
 
 interface Cliente2 {
   actualizadoEn: string;
@@ -178,32 +172,81 @@ interface Visita2 {
   ventaId: number | null;
 }
 
+type SaleData = {
+  // Campos para ventas normales (obligatorios)
+  monto: number;
+  montoConDescuento: number;
+  metodoPago: string;
+  empresaId: number;
+  descuento?: number;
+  clienteId?: number;
+  vendedorId?: number;
+  productos: {
+    productoId: number;
+    cantidad: number;
+    precio: number;
+  }[];
+
+  // Campos opcionales (solo necesarios si es CREDITO)
+  creditoInicial?: number;
+  numeroCuotas?: number;
+  interes?: number;
+  comentario?: string;
+  diasEntrePagos?: number;
+};
+
+type Venta = {
+  id: number;
+  monto: number;
+  montoConDescuento: number;
+  descuento: number;
+  metodoPago: "CONTADO" | "CREDITO"; // Agrega otros métodos de pago si existen
+  timestamp: string; // ISO 8601 timestamp
+  usuarioId: number;
+  clienteId: number | null; // Puede ser `null`
+  visitaId: number | null; // Puede ser `null`
+  // productos: ProductoVenta[];
+};
+// Tipos para el estado de la información del crédito
+type CreditoInfo = {
+  creditoInicial: number | null;
+  numeroCuotas: number | null;
+  interes: number | null;
+  comentario: string | null;
+  diasEntrePagos: number | null;
+};
+
+interface SummaryItemProps {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+}
+
 export default function MakeSale() {
+  // Este hook debe ir al inicio del componente
+  const [cantidades, setCantidades] = useState<Record<number, number>>({});
+  // Agrega esto al inicio del componente si no está ya
+  const [cantidadSeleccionada, setCantidadSeleccionada] = useState(1);
+
+  const handleCantidadChange = (id: number, value: number) => {
+    setCantidades((prev) => ({
+      ...prev,
+      [id]: Math.max(
+        1,
+        Math.min(
+          value,
+          filteredProducts.find((p) => p.id === id)?.stock?.cantidad || 1
+        )
+      ),
+    }));
+  };
+
   const userId = useStore((state) => state.userId) ?? 0;
   const empresaId = useStore((state) => state.sucursalId) ?? 0;
-  // const [tokenUser, setTokenUser] = useState<UserTokenInfo | null>(null);
-
-  // useEffect(() => {
-  //   const token = localStorage.getItem("authToken");
-
-  //   if (token) {
-  //     try {
-  //       const decodedToken = jwtDecode<UserTokenInfo>(token);
-  //       setTokenUser(decodedToken);
-  //     } catch (error) {
-  //       console.error("Error decoding token:", error);
-  //     }
-  //   }
-  // }, []);
-  // console.log("El token user es: ", tokenUser);
-
   // Estados
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("Todas");
   const [selectedMetodPago, setSelectedMetodPago] = useState("CONTADO");
-
-  // const [products, setProducts] = useState<Producto[]>([]);
-
   const [cart, setCart] = useState<(Producto & { quantity: number })[]>([]); // Agregamos `quantity` al estado del carrito
   const [selectedCustomer, setSelectedCustomer] = useState<Cliente | null>(
     null
@@ -215,68 +258,51 @@ export default function MakeSale() {
   const [nota, setNota] = useState<string>("");
   const [customers, setCustomers] = useState<Cliente[]>([]);
   const [categoria, setCategoria] = useState<CategoriaFiltrar[]>([]);
-
   const [showCartModal, setShowCartModal] = useState(false);
-  // const socket = useSocket();
-
   // 📌 Estados para productos y paginación
   const [products, setProducts] = useState<Producto[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [isFetching, setIsFetching] = useState(false);
   const loadMoreRef = useRef<HTMLDivElement>(null);
-
   const itemsPerPage = 8;
 
-  useEffect(() => {
-    const fetchProducts = async (newPage: number) => {
-      setIsFetching(true);
-      try {
-        const response = await axios.get(
-          `${API_URL}/product?page=${newPage}&limit=${itemsPerPage}`
-        );
-
-        // console.log(
-        //   "Productos recibidos:",
-        //   response.data.products.length,
-        //   response.data.products
-        // );
-
-        if (response.status === 200 && Array.isArray(response.data.products)) {
-          setProducts((prev) => {
-            // 🔥 Filtrar duplicados antes de actualizar el estado
+  const fetchProducts = async (newPage: number) => {
+    setIsFetching(true);
+    try {
+      const response = await axios.get(
+        `${API_URL}/product?page=${newPage}&limit=${itemsPerPage}`
+      );
+      if (response.status === 200 && Array.isArray(response.data.products)) {
+        setProducts((prev) => {
+          if (newPage === 1) {
+            return response.data.products; // ⚠️ Reemplaza productos si es la primera página
+          } else {
             const mergedProducts = [...prev, ...response.data.products];
             const uniqueProducts = mergedProducts.filter(
               (product, index, self) =>
                 index === self.findIndex((p) => p.id === product.id)
             );
-
             return uniqueProducts;
-          });
+          }
+        });
+        console.log("response.data.products", response.data.products);
 
-          setTotalPages(response.data.totalPages);
-        }
-      } catch (error) {
-        console.error("Error al obtener productos:", error);
-      } finally {
-        setIsFetching(false);
+        setTotalPages(response.data.totalPages);
       }
-    };
+    } catch (error) {
+      console.error("Error al obtener productos:", error);
+    } finally {
+      setIsFetching(false);
+    }
+  };
 
+  useEffect(() => {
     fetchProducts(page);
   }, [page]);
 
   // 🔍 Detectar scroll y cargar más productos
   useEffect(() => {
-    // const observer = new IntersectionObserver(
-    //   (entries) => {
-    //     if (entries[0].isIntersecting && page < totalPages && !isFetching) {
-    //       setPage((prev) => prev + 1);
-    //     }
-    //   },
-    //   { threshold: 1.0 }
-    // );
-
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && page < totalPages && !isFetching) {
@@ -289,21 +315,6 @@ export default function MakeSale() {
     if (loadMoreRef.current) observer.observe(loadMoreRef.current);
     return () => observer.disconnect();
   }, [isFetching, page, totalPages]);
-
-  ///===============================
-  // const getCustomers = async () => {
-  //   try {
-  //     const response = await axios.get(
-  //       `${API_URL}/customers/all-customers-with-discount`
-  //     );
-  //     if (response.status === 200) {
-  //       setCustomers(response.data);
-  //     }
-  //   } catch (error) {
-  //     console.error(error);
-  //     toast.error("No se encontraron clientes");
-  //   }
-  // };
 
   // Obtener clientes
   useEffect(() => {
@@ -341,10 +352,8 @@ export default function MakeSale() {
     getCategories();
   }, []);
 
-  // Funciones de carrito
-  const addToCart = (product: Producto) => {
-    if (!product.stock || product.stock?.cantidad <= 0) {
-      //si es null o no tiene suficiente
+  const addToCart = (product: Producto, quantity: number) => {
+    if (!product.stock || product.stock?.cantidad < quantity) {
       toast.info("Stock insuficiente");
       return;
     }
@@ -352,12 +361,12 @@ export default function MakeSale() {
     const productoExistente = cart.some((prod) => prod.id === product.id);
 
     if (productoExistente) {
-      toast.info("El objeto ya está en el carrito");
+      toast.info("El producto ya está en el carrito");
       return;
     }
 
-    setCart((prevCart) => [...prevCart, { ...product, quantity: 1 }]);
-    toast.success("Añadido al Carrito");
+    setCart((prevCart) => [...prevCart, { ...product, quantity }]);
+    toast.success(`Añadido ${quantity} al Carrito`);
   };
 
   const removeFromCart = (productId: number) => {
@@ -395,7 +404,6 @@ export default function MakeSale() {
     return subtotal;
   };
 
-  // Filtrar productos
   const filteredProducts = products.filter(
     (product) =>
       (searchTerm === "" ||
@@ -408,31 +416,6 @@ export default function MakeSale() {
           (cat) => cat.categoria.nombre === selectedCategory
         ))
   );
-
-  // console.log(cart);
-
-  type SaleData = {
-    // Campos para ventas normales (obligatorios)
-    monto: number;
-    montoConDescuento: number;
-    metodoPago: string;
-    empresaId: number;
-    descuento?: number;
-    clienteId?: number;
-    vendedorId?: number;
-    productos: {
-      productoId: number;
-      cantidad: number;
-      precio: number;
-    }[];
-
-    // Campos opcionales (solo necesarios si es CREDITO)
-    creditoInicial?: number;
-    numeroCuotas?: number;
-    interes?: number;
-    comentario?: string;
-    diasEntrePagos?: number;
-  };
 
   const formatoCartData = (
     cart: (Producto & { quantity: number })[]
@@ -473,18 +456,6 @@ export default function MakeSale() {
   };
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  type Venta = {
-    id: number;
-    monto: number;
-    montoConDescuento: number;
-    descuento: number;
-    metodoPago: "CONTADO" | "CREDITO"; // Agrega otros métodos de pago si existen
-    timestamp: string; // ISO 8601 timestamp
-    usuarioId: number;
-    clienteId: number | null; // Puede ser `null`
-    visitaId: number | null; // Puede ser `null`
-    // productos: ProductoVenta[];
-  };
 
   const [saleMade, setSaleMade] = useState<Venta>();
   const [openDialogSaleMade, setOpenDialogSaleMade] = useState<boolean>(false);
@@ -501,9 +472,6 @@ export default function MakeSale() {
 
   const sendCartData = async (cart: (Producto & { quantity: number })[]) => {
     const formateado: SaleData = formatoCartData(cart);
-
-    // console.log("Data a enviar:", formateado);
-
     if (
       !formateado.clienteId ||
       typeof formateado.monto === "undefined" ||
@@ -542,6 +510,10 @@ export default function MakeSale() {
         setIsSubmitting(false);
         setShowCartModal(false);
         setConfirmSale(false);
+        setCantidades({}); // Limpiar cantidades al finalizar la venta
+        setCantidadSeleccionada(1);
+        fetchProducts(1); // Refrescar productos después de la venta
+        setPage(1);
         setTimeout(() => {
           setOpenDialogSaleMade(true);
         }, 1500);
@@ -594,86 +566,10 @@ export default function MakeSale() {
     }
   }, [userId]);
 
-  // console.log("El registro abierto es: ", registroAbierto);
-  // console.log(
-  //   "El id del cliente del registro vsita es: ",
-  //   registroAbierto?.clienteId
-  // );
-
-  // async function realizarVentaConVisita(
-  //   cart: (Producto & { quantity: number })[]
-  // ) {
-  //   const formateado = formatoCartData(cart);
-
-  //   console.log("La data a enviar es: ", formateado);
-
-  //   // Validar campos requeridos
-  //   if (
-  //     !formateado.clienteId ||
-  //     typeof formateado.monto === "undefined" ||
-  //     !formateado.productos ||
-  //     !formateado.vendedorId ||
-  //     !formateado.montoConDescuento ||
-  //     !formateado.metodoPago
-  //   ) {
-  //     toast.info("Faltan campos sin llenar");
-  //     return;
-  //   }
-
-  //   // Validaciones adicionales si es CREDITO
-  //   if (formateado.metodoPago === "CREDITO") {
-  //     if (
-  //       !formateado.numeroCuotas ||
-  //       formateado.numeroCuotas <= 0 ||
-  //       !formateado.interes ||
-  //       formateado.interes < 0 ||
-  //       !formateado.creditoInicial ||
-  //       formateado.creditoInicial < 0
-  //     ) {
-  //       toast.info(
-  //         "Datos de crédito inválidos. Revisa cuotas, interés y crédito inicial."
-  //       );
-  //       return;
-  //     }
-  //   }
-
-  //   console.log("Datos a enviar:", {
-  //     formateado,
-  //     registroVisitaId: registroAbierto?.id,
-  //   });
-
-  //   try {
-  //     setIsSubmitting(true); // Deshabilitar el botón
-  //     const response = await axios.post(`${API_URL}/sale/sale-for-regis`, {
-  //       ...formateado,
-  //       registroVisitaId: registroAbierto?.id,
-  //     });
-
-  //     if (response.status === 200 || response.status === 201) {
-  //       setSaleMade(response.data); // Guardar datos de la venta
-  //       toast.success("Venta creada");
-  //       clearCart();
-  //       setIsSubmitting(false); // Habilitar el botón si la venta es exitosa
-  //       setShowCartModal(false); // Cerrar el modal
-
-  //       // Mostrar el diálogo después de un breve retraso
-  //       setTimeout(() => {
-  //         setOpenDialogSaleMade(true);
-  //       }, 1500);
-  //     }
-  //   } catch (error) {
-  //     console.log(error);
-  //     toast.error("Error al crear venta");
-  //     setIsSubmitting(false); // Rehabilitar el botón si hay un error
-  //   }
-  // }
-
   async function realizarVentaConVisita(
     cart: (Producto & { quantity: number })[]
   ) {
     const formateado = formatoCartData(cart);
-
-    // console.log("La data a enviar es: ", formateado);
 
     if (
       !formateado.clienteId ||
@@ -687,14 +583,13 @@ export default function MakeSale() {
       return;
     }
 
-    // Validaciones adicionales si es CREDITO
     if (formateado.metodoPago === "CREDITO") {
       if (
         !formateado.numeroCuotas ||
         formateado.numeroCuotas <= 0 ||
         !formateado.interes ||
         formateado.interes < 0 ||
-        !formateado.diasEntrePagos || // ✅ Agregado para igualar la validación de sendCartData
+        !formateado.diasEntrePagos ||
         formateado.diasEntrePagos < 0 ||
         !formateado.creditoInicial ||
         formateado.creditoInicial < 0
@@ -706,11 +601,6 @@ export default function MakeSale() {
       }
     }
 
-    // console.log("Datos a enviar:", {
-    //   ...formateado,
-    //   registroVisitaId: registroAbierto?.id,
-    // });
-
     try {
       setIsSubmitting(true);
       const response = await axios.post(`${API_URL}/sale/sale-for-regis`, {
@@ -719,14 +609,22 @@ export default function MakeSale() {
         visita: true,
       });
 
-      if (response.status === 200 || response.status === 201) {
+      if (response.status === 201) {
         setSaleMade(response.data);
         toast.success("Venta creada");
+
+        // Limpiar estado
         clearCart();
-        // setSelectedCustomer(null); // ✅ Igual que en sendCartData
         setIsSubmitting(false);
         setShowCartModal(false);
         setConfirmSale(false);
+        setCantidades({});
+        setCantidadSeleccionada(1);
+
+        // Refrescar productos y reiniciar paginación
+        fetchProducts(1);
+        setPage(1);
+
         setTimeout(() => {
           setOpenDialogSaleMade(true);
         }, 1500);
@@ -737,10 +635,6 @@ export default function MakeSale() {
       setIsSubmitting(false);
     }
   }
-
-  // console.log("El usuario seleccionado es: ", selectedCustomer);
-
-  //----------------------------------------------------------------
 
   const requestCustomDiscount = async () => {
     if (!selectedCustomer?.id || !userId || !descuento) {
@@ -772,27 +666,6 @@ export default function MakeSale() {
     }
   };
 
-  // useEffect(() => {
-  //   if (socket) {
-  //     // Verifica si el rol es VENDEDOR
-  //     // Escuchar el evento específico para vendedores
-  //     socket.on("newNotificationToSeller", (newNotification) => {
-  //       console.log(
-  //         "La notificación entrante para vendedor es: ",
-  //         newNotification
-  //       );
-
-  //       getCustomers();
-  //     });
-
-  //     // Limpiar el evento al desmontar el componente
-  //     return () => {
-  //       socket.off("newNotificationToSeller"); // Limpiar el evento específico para vendedores
-  //     };
-  //   }
-  // }, [socket, userId]); // Añadir tokenUser como dependencia para actualizar si cambia
-
-  // Opciones de ejemplo para el selector (customers)
   const options = customers.map((customer) => ({
     value: customer.id,
     label: `${customer.nombre} ${customer.apellido || ""}`,
@@ -802,15 +675,6 @@ export default function MakeSale() {
     value: desc.id,
     label: `${desc.porcentaje.toString()}`,
   }));
-
-  // Tipos para el estado de la información del crédito
-  type CreditoInfo = {
-    creditoInicial: number | null;
-    numeroCuotas: number | null;
-    interes: number | null;
-    comentario: string | null;
-    diasEntrePagos: number | null;
-  };
 
   const [creditoInfo, setCreditoInfo] = useState<CreditoInfo>({
     creditoInicial: null,
@@ -853,21 +717,6 @@ export default function MakeSale() {
     }
   }
 
-  // interface CreditSummaryProps {
-  //   saldoRestante: number;
-  //   montoTotal: number;
-  //   montoInteres: number;
-  //   montoTotalConInteres: number;
-  //   pagoPorCuota: number;
-  //   fechasDePago: string[];
-  // }
-
-  interface SummaryItemProps {
-    icon: React.ReactNode;
-    label: string;
-    value: number;
-  }
-
   function SummaryItem({
     icon,
     label,
@@ -888,13 +737,7 @@ export default function MakeSale() {
       </div>
     );
   }
-
-  // const fechas =
   const [confirmSale, setConfirmSale] = useState(false);
-
-  // const [truncarSelectDescuentoForCredit, setTruncarSelectDescuentoForCredit] =
-  //   useState(false);
-
   useEffect(() => {
     const handleScroll = () => {
       if (loadMoreRef.current) {
@@ -974,7 +817,6 @@ export default function MakeSale() {
   return (
     <div className="grid grid-cols-1 gap-4">
       {/* Selección de Cliente y Descuento */}
-      {/* <div className="lg:col-span-2"> */}
       <div className="w-full p-4 ">
         <Card className="mb-8 shadow-xl">
           <CardContent>
@@ -1006,10 +848,8 @@ export default function MakeSale() {
                 onChange={(selectedOption) => {
                   if (!registroAbierto) {
                     if (selectedOption === null) {
-                      // Si se limpia el selector
                       setSelectedCustomer(null);
                     } else {
-                      // Si se selecciona una opción
                       const selectedCustomer =
                         customers.find(
                           (customer) => customer.id === selectedOption.value
@@ -1043,10 +883,8 @@ export default function MakeSale() {
                     }
                     onChange={(selectedOption) => {
                       if (selectedOption === null) {
-                        // Si se limpia el selector
                         setSelectedDiscount(null);
                       } else {
-                        // Si se selecciona una opción
                         const discount = selectedCustomer?.descuentos.find(
                           (desc) => desc.id === selectedOption.value
                         );
@@ -1065,40 +903,6 @@ export default function MakeSale() {
           </CardContent>
         </Card>
 
-        {/* Solicitar Descuento Personalizado */}
-        {/* <Card className="mb-1 shadow-xl">
-          <CardContent>
-            <h3 className="text-md font-semibold mb-4 pt-2">
-              Solicitar Descuento
-            </h3>
-            <div className="flex items-center mb-4">
-              <input
-                className="bg-white dark:text-black border rounded-md p-2 w-32 mr-2"
-                type="number"
-                placeholder="Porcentaje"
-                min="0"
-                max="100"
-                value={descuento}
-                onChange={(e) => setDescuento(Number(e.target.value))}
-              />
-              <span className="text-lg">%</span>
-            </div>
-            <Textarea
-              placeholder="Justificación"
-              onChange={(e) => setNota(e.target.value)}
-              className="mb-4"
-              value={nota}
-            />
-            <Button
-              type="button"
-              // disabled={isRequesting}
-              onClick={requestCustomDiscount}
-              className="mt-2"
-            >
-              Solicitar Descuento Personalizado
-            </Button>
-          </CardContent>
-        </Card> */}
         <Card className="mb-4 shadow-lg bg-white dark:bg-gray-800">
           <CardHeader>
             <CardTitle className="text-lg font-semibold flex items-center gap-2 text-gray-800 dark:text-gray-200">
@@ -1175,7 +979,6 @@ export default function MakeSale() {
             </Select>
 
             <Button
-              // variant="destructive"
               onClick={() => setShowCartModal(true)}
               className="bg-red-500 w-full  text-white"
             >
@@ -1196,63 +999,6 @@ export default function MakeSale() {
                     Productos añadidos al carrito.
                   </DialogDescription>
                 </DialogHeader>
-
-                {/* <ScrollArea className="flex-grow mt-4 pr-4">
-                  {cart.length === 0 ? (
-                    <p className="text-gray-500 text-center py-4">
-                      El carrito está vacío
-                    </p>
-                  ) : (
-                    cart.map((item) => (
-                      <div
-                        key={item.id}
-                        className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 pb-4 border-b border-gray-200 dark:border-gray-700"
-                      >
-                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 mb-2 sm:mb-0">
-                          <p className="font-semibold text-gray-800 dark:text-gray-200">
-                            {item.nombre}
-                          </p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {formatearMoneda(item.precio)}
-                          </p>
-
-                          <img
-                            src={
-                              item.imagenes.length > 0
-                                ? item.imagenes[0].url
-                                : placeholder
-                            }
-                          />
-                        </div>
-                        <div className="flex items-center gap-10">
-                          <Input
-                            type="number"
-                            min="1"
-                            max={item.stock?.cantidad}
-                            value={item.quantity}
-                            onChange={(e) => {
-                              const value = e.target.value
-                                ? Number.parseInt(e.target.value)
-                                : 1;
-                              updateQuantity(item.id, value);
-                            }}
-                            className="w-16 text-center"
-                            aria-label={`Cantidad de ${item.nombre}`}
-                          />
-                          <Button
-                            variant="destructive"
-                            size="icon"
-                            onClick={() => removeFromCart(item.id)}
-                            aria-label={`Eliminar ${item.nombre} del carrito`}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </ScrollArea> */}
-
                 <ScrollArea className="flex-grow mt-4 pr-4">
                   {cart.length === 0 ? (
                     <p className="text-gray-500 text-center py-4">
@@ -1581,7 +1327,6 @@ export default function MakeSale() {
       </div>
 
       {/* Productos Filtrados */}
-      {/* <div className="lg:col-span-3"> */}
       <div className="w-full p-4">
         <Card className="mb-4 shadow-xl">
           <CardContent>
@@ -1640,8 +1385,6 @@ export default function MakeSale() {
               >
                 <Card
                   className="h-full flex flex-col hover:shadow-lg transition-all duration-300"
-                  // onMouseEnter={() => setIsHovered(true)}
-                  // onMouseLeave={() => setIsHovered(false)}
                   onMouseEnter={() => setHoveredProduct(product.id)}
                 >
                   <CardContent className="flex-grow p-4 relative">
@@ -1660,12 +1403,14 @@ export default function MakeSale() {
                         </Button>
                       )}
                     </div>
+
                     <h3 className="font-semibold text-lg mb-2 line-clamp-2">
                       {product.nombre}
                     </h3>
                     <p className="text-sm text-muted-foreground mb-2">
                       {product.codigoProducto}
                     </p>
+
                     <div className="flex flex-wrap gap-2 mb-2">
                       {product.categorias.map((cat, index) => (
                         <Badge
@@ -1676,6 +1421,7 @@ export default function MakeSale() {
                         </Badge>
                       ))}
                     </div>
+
                     <div className="flex justify-between items-center mb-2">
                       <p className="font-bold text-lg">
                         Q{product.precio.toFixed(2)}
@@ -1692,35 +1438,54 @@ export default function MakeSale() {
                           : "Agotado"}
                       </Badge>
                     </div>
+
+                    {/* Input para la cantidad */}
+                    <div className="flex items-center gap-2 mt-4">
+                      <Input
+                        type="number"
+                        min="1"
+                        max={product.stock?.cantidad}
+                        value={cantidades[product.id] ?? 1}
+                        onChange={(e) =>
+                          handleCantidadChange(
+                            product.id,
+                            parseInt(e.target.value) || 1
+                          )
+                        }
+                        className="w-16 text-center"
+                        aria-label={`Cantidad de ${product.nombre}`}
+                      />
+                    </div>
                   </CardContent>
 
                   <CardFooter className="p-4">
                     <Button
                       onClick={() => {
+                        const cantidad = cantidades[product.id] ?? 1;
                         if (cart.some((prod) => prod.id === product.id)) {
-                          removeFromCart(product.id); // Si está en el carrito, lo elimina
+                          removeFromCart(product.id);
                         } else {
-                          addToCart(product); // Si no está, lo añade
+                          addToCart(product, cantidad);
                         }
                       }}
                       disabled={!product.stock || product.stock.cantidad === 0}
-                      className={`w-full transition-all duration-200 font-semibold text-white rounded-lg shadow-md ${
+                      className={`w-full font-semibold text-white rounded-lg shadow-md ${
                         cart.some((prod) => prod.id === product.id)
-                          ? "bg-red-500 hover:bg-red-600" // Rojo vibrante si ya está en el carrito (eliminar)
-                          : "bg-blue-700 hover:bg-blue-800" // Azul brillante si no está (añadir)
+                          ? "bg-red-500 hover:bg-red-600"
+                          : "bg-blue-700 hover:bg-blue-800"
                       }`}
                     >
                       {cart.some((prod) => prod.id === product.id) ? (
                         <>
-                          <Trash2 className="mr-2 h-4 w-4" />{" "}
-                          {/* Icono de eliminar */}
+                          <Trash2 className="mr-2 h-4 w-4" />
                           Quitar del carrito
                         </>
                       ) : (
                         <>
-                          <Plus className="mr-2 h-4 w-4" />{" "}
-                          {/* Icono de añadir */}
-                          Añadir al carrito
+                          <Plus className="mr-2 h-4 w-4" />
+                          Añadir{" "}
+                          {cantidades[product.id] > 1 &&
+                            `(${cantidades[product.id]})`}
                         </>
                       )}
                     </Button>
@@ -1732,64 +1497,57 @@ export default function MakeSale() {
 
           <Dialog open={isQuickViewOpen} onOpenChange={setIsQuickViewOpen}>
             {product && (
-              <DialogContent className="max-w-[90%] max-h-[95%] sm:max-w-[80%] md:max-w-[600px] lg:max-w-[800px] mx-auto overflow-auto grid place-items-center">
-                <DialogHeader>
-                  <DialogTitle className="text-2xl font-bold">
-                    {product.nombre}
-                  </DialogTitle>
-                  <DialogDescription className="text-sm text-muted-foreground">
-                    Código: {product.codigoProducto}
-                  </DialogDescription>
-                </DialogHeader>
-                {/* <div className="grid gap-4 py-4 md:grid-cols-2"> */}
+              <DialogContent className="max-w-[95vw] sm:max-w-[90vw] md:max-w-[600px] lg:max-w-[720px] xl:max-w-[800px] max-h-screen p-4 overflow-hidden">
+                <ScrollArea className="h-[80vh] pr-2">
+                  <DialogHeader>
+                    <DialogTitle className="text-xl md:text-2xl font-bold text-center">
+                      {product.nombre}
+                    </DialogTitle>
+                    <DialogDescription className="text-sm text-muted-foreground text-center">
+                      Código: {product.codigoProducto}
+                    </DialogDescription>
+                  </DialogHeader>
 
-                {/* MEJORAR LA VISTA DE PRODUCTOS EN STOCK, MEJORAR LA PAGINA DONDE
-                MOSTRAMOS LOS PRODUCTOS A AÑADIR STOCK, LA EDIION DE PRODUCTOS,
-                ELIMINACION, Y AÑADIDO DE IMAGENES, SI ES POSIBLE MEJORAR LA
-                ADICION DE IMAGEN AL CROP PORQUE SIENTO QUE ESTÁ PEQUEÑA XD
-                SOLAMENTE, CREO, ACTUALIZAR EL SERVIDOR, LAS CREDENCIALES DE
-                CLOUDINARY, LAS CREDENCIALES DE GOOGLE MAPS, ETC. */}
-
-                <div className="grid gap-4 py-1 md:py-0 md:grid-cols-2">
-                  <div className="order-2 md:order-1 relative">
-                    <Carousel className="w-full max-w-xs mx-auto">
-                      <CarouselContent>
-                        {product.imagenes.length > 0 ? (
-                          product.imagenes.map((image, index) => (
-                            <CarouselItem key={index}>
+                  <div className="grid gap-6 py-4 md:grid-cols-2">
+                    <div className="order-2 md:order-1 flex justify-center">
+                      <Carousel className="w-full max-w-xs">
+                        <CarouselContent>
+                          {product.imagenes.length > 0 ? (
+                            product.imagenes.map((image, index) => (
+                              <CarouselItem key={index}>
+                                <div className="p-1">
+                                  <img
+                                    src={
+                                      image.url.length > 0
+                                        ? image.url
+                                        : placeholder
+                                    }
+                                    alt={`${product.nombre} - Imagen ${
+                                      index + 1
+                                    }`}
+                                    className="w-full h-64 object-cover rounded-md"
+                                  />
+                                </div>
+                              </CarouselItem>
+                            ))
+                          ) : (
+                            <CarouselItem>
                               <div className="p-1">
                                 <img
-                                  src={
-                                    image.url.length > 0
-                                      ? image.url
-                                      : placeholder
-                                  }
-                                  alt={`${product.nombre} - Imagen ${
-                                    index + 1
-                                  }`}
+                                  src={placeholder}
+                                  alt="Imagen no disponible"
                                   className="w-full h-64 object-cover rounded-md"
                                 />
                               </div>
                             </CarouselItem>
-                          ))
-                        ) : (
-                          <CarouselItem>
-                            <div className="p-1">
-                              <img
-                                src={placeholder}
-                                alt="Imagen no disponible"
-                                className="w-full h-64 object-cover rounded-md"
-                              />
-                            </div>
-                          </CarouselItem>
-                        )}
-                      </CarouselContent>
-                      <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2" />
-                      <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2" />
-                    </Carousel>
-                  </div>
-                  <div className="order-1 md:order-2">
-                    <ScrollArea className="h-[250px] md:h-[400px] w-full rounded-md border p-4">
+                          )}
+                        </CarouselContent>
+                        <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2" />
+                        <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2" />
+                      </Carousel>
+                    </div>
+
+                    <div className="order-1 md:order-2">
                       <h4 className="font-semibold mb-2">Descripción</h4>
                       <p className="text-sm mb-4">{product.descripcion}</p>
                       <Separator className="my-4" />
@@ -1830,29 +1588,36 @@ export default function MakeSale() {
                           </div>
                         </li>
                       </ul>
-                    </ScrollArea>
+                    </div>
                   </div>
-                </div>
-                <div className="flex justify-end gap-4">
-                  <Button
-                    onClick={() => setIsQuickViewOpen(false)}
-                    variant="destructive"
-                  >
-                    Cerrar
-                  </Button>
-                  {/* <Button
-                    onClick={() => {
-                      addToCart(product);
-                      setIsQuickViewOpen(false);
-                    }}
-                    disabled={!product.stock || product.stock.cantidad === 0}
-                  >
-                    <ShoppingCart className="mr-2 h-4 w-4" />
-                    Añadir al Carrito
-                  </Button> */}
 
+                  {/* Input de cantidad */}
+                  <div className="w-full flex justify-center mt-4">
+                    <Input
+                      type="number"
+                      min="1"
+                      max={product.stock?.cantidad}
+                      value={cantidadSeleccionada}
+                      onChange={(e) =>
+                        setCantidadSeleccionada(
+                          Math.max(
+                            1,
+                            Math.min(
+                              parseInt(e.target.value) || 1,
+                              product.stock?.cantidad || 1
+                            )
+                          )
+                        )
+                      }
+                      className="w-24 text-center"
+                    />
+                  </div>
+                </ScrollArea>
+
+                {/* Botones */}
+                <div className="flex justify-end gap-4 mt-6">
                   <Button
-                    onClick={() => addToCart(product)}
+                    onClick={() => addToCart(product, cantidadSeleccionada)}
                     disabled={!product.stock || product.stock.cantidad === 0}
                     className="w-full"
                   >
@@ -1864,7 +1629,7 @@ export default function MakeSale() {
                     ) : (
                       <>
                         <Plus className="mr-2 h-4 w-4" />
-                        Añadir al Carrito
+                        Añadir ({cantidadSeleccionada})
                       </>
                     )}
                   </Button>

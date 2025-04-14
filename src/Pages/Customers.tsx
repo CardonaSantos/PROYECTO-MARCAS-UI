@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Card,
   CardContent,
@@ -133,37 +133,20 @@ interface UserTokenInfo {
   sub: number;
 }
 
+interface FiltrosCliente {
+  nombre: string;
+  apellido: string;
+  departamentoId: string;
+  municipioId: string;
+  volumenCompra: string;
+  presupuestoMensual: string;
+  intereses: string[];
+}
+
 export default function ClientesList() {
   const [customers, setCustomers] = useState<Cliente[] | null>(null);
-  const [filteredCustomers, setFilteredCustomers] = useState<Cliente[] | null>(
-    null
-  );
   const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
   const [municipios, setMunicipios] = useState<Municipio[]>([]);
-  const [filtros, setFiltros] = useState({
-    nombre: "",
-    apellido: "",
-    departamentoId: "",
-    municipioId: "",
-    volumenCompra: "",
-    presupuestoMensual: "",
-    intereses: [] as string[], // Nuevo filtro de intereses
-  });
-  const [searchQuery, setSearchQuery] = useState("");
-  const opcionesIntereses: OpcionInteres[] = [
-    { label: "Ropa de Mujer", value: "Ropa de Mujer" },
-    { label: "Ropa de Hombre", value: "Ropa de Hombre" },
-    { label: "Ropa Infantil", value: "Ropa Infantil" },
-    { label: "Accesorios", value: "Accesorios" },
-    { label: "Calzado", value: "Calzado" },
-    { label: "Ropa Deportiva", value: "Ropa Deportiva" },
-    { label: "Ropa Formal", value: "Ropa Formal" },
-    { label: "Ropa de Trabajo", value: "Ropa de Trabajo" },
-    { label: "Ropa de Marca", value: "Ropa de Marca" },
-  ];
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-  };
 
   const [tokenUser, setTokenUser] = useState<UserTokenInfo | null>(null);
 
@@ -180,24 +163,86 @@ export default function ClientesList() {
     }
   }, []);
 
-  async function getCustomers() {
-    try {
-      const response = await axios.get(
-        `${API_URL}/customers/get-all-customers`
-      );
-      if (response.status === 200) {
-        setCustomers(response.data);
-        setFilteredCustomers(response.data); // Inicialmente, todos los clientes se muestran
-      }
-    } catch (error) {
-      console.log(error);
-      toast.info("No se encontraron clientes");
-    }
-  }
+  const [filtros, setFiltros] = useState<FiltrosCliente>({
+    nombre: "",
+    apellido: "",
+    departamentoId: "",
+    municipioId: "",
+    volumenCompra: "",
+    presupuestoMensual: "",
+    intereses: [],
+  });
 
-  useEffect(() => {
-    getCustomers();
-  }, []);
+  const [searchQuery, setSearchQuery] = useState("");
+  // const [filteredCustomers, setFilteredCustomers] = useState<Cliente[]>([]);
+  const [sortColumn, setSortColumn] = useState<keyof Cliente>("nombre");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+
+  const opcionesIntereses: OpcionInteres[] = [
+    { label: "Ropa de Mujer", value: "Ropa de Mujer" },
+    { label: "Ropa de Hombre", value: "Ropa de Hombre" },
+    { label: "Ropa Infantil", value: "Ropa Infantil" },
+    { label: "Accesorios", value: "Accesorios" },
+    { label: "Calzado", value: "Calzado" },
+    { label: "Ropa Deportiva", value: "Ropa Deportiva" },
+    { label: "Ropa Formal", value: "Ropa Formal" },
+    { label: "Ropa de Trabajo", value: "Ropa de Trabajo" },
+    { label: "Ropa de Marca", value: "Ropa de Marca" },
+  ];
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleFiltroChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    if (name in filtros) {
+      setFiltros((prev) => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const handleSelectDepartamento = async (
+    event: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    const departamentoId = Number(event.target.value);
+    setFiltros((prev) => ({ ...prev, departamentoId: event.target.value }));
+
+    if (departamentoId) {
+      try {
+        const response = await axios.get(
+          `${API_URL}/customer-location/get-municipios/${departamentoId}`
+        );
+        setMunicipios(Array.isArray(response.data) ? response.data : []);
+      } catch (error) {
+        console.error("Error fetching municipios", error);
+      }
+    }
+  };
+
+  const handleSelectMunicipio = (
+    event: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    setFiltros((prev) => ({ ...prev, municipioId: event.target.value }));
+  };
+
+  const handleLimpiarFiltro = () => {
+    setFiltros({
+      nombre: "",
+      apellido: "",
+      departamentoId: "",
+      municipioId: "",
+      volumenCompra: "",
+      presupuestoMensual: "",
+      intereses: [],
+    });
+    setSearchQuery("");
+    setCurrentPage(1);
+    setMunicipios([]);
+  };
 
   useEffect(() => {
     const fetchDepartamentos = async () => {
@@ -210,125 +255,48 @@ export default function ClientesList() {
         console.error("Error fetching departamentos", error);
       }
     };
-
     fetchDepartamentos();
   }, []);
 
-  // Maneja el filtro de departamentos
-  const handleSelectDepartamento = async (
-    event: React.ChangeEvent<HTMLSelectElement>
-  ) => {
-    const departamentoId = Number(event.target.value);
-    setFiltros((prev) => ({ ...prev, departamentoId: event.target.value }));
-
-    if (departamentoId) {
+  useEffect(() => {
+    async function getCustomers() {
       try {
         const response = await axios.get(
-          `${API_URL}/customer-location/get-municipios/${departamentoId}`
+          `${API_URL}/customers/get-all-customers`
         );
-        const data = response.data;
-        if (Array.isArray(data)) {
-          setMunicipios(data);
-        } else {
-          setMunicipios([]);
+        if (response.status === 200) {
+          setCustomers(response.data);
         }
       } catch (error) {
-        console.error("Error fetching municipios", error);
+        console.log(error);
+        toast.info("No se encontraron clientes");
       }
     }
-  };
+    getCustomers();
+  }, []);
 
-  // Maneja el filtro de municipios
-  const handleSelectMunicipio = (
-    event: React.ChangeEvent<HTMLSelectElement>
-  ) => {
-    setFiltros((prev) => ({ ...prev, municipioId: event.target.value }));
-  };
+  const filteredAndSortedCustomers = useMemo(() => {
+    if (!customers) return [];
 
-  // Maneja los otros filtros
-  const handleFiltroChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setFiltros((prevFiltros) => ({
-      ...prevFiltros,
-      [name]: value,
-    }));
-  };
-
-  // Aplicar filtros a los clientes
-  // useEffect(() => {
-  //   if (customers) {
-  //     const filtered = customers.filter((cliente) => {
-  //       const matchesSearch =
-  //         searchQuery === "" ||
-  //         (cliente.nombre?.toLowerCase() || "").includes(
-  //           searchQuery.toLowerCase()
-  //         ) ||
-  //         (cliente.apellido?.toLowerCase() || "").includes(
-  //           searchQuery.toLowerCase()
-  //         ) ||
-  //         (
-  //           (cliente.nombre?.toLowerCase() || "") +
-  //           " " +
-  //           (cliente.apellido?.toLowerCase() || "")
-  //         ).includes(searchQuery.toLowerCase()) ||
-  //         (cliente.telefono?.toLowerCase() || "").includes(
-  //           searchQuery.toLowerCase()
-  //         ) ||
-  //         (cliente.correo?.toLowerCase() || "").includes(
-  //           searchQuery.toLowerCase()
-  //         );
-
-  //       return (
-  //         matchesSearch &&
-  //         (filtros.departamentoId === "" ||
-  //           cliente.departamentoId === Number(filtros.departamentoId)) &&
-  //         (filtros.municipioId === "" ||
-  //           cliente.municipioId === Number(filtros.municipioId)) &&
-  //         (filtros.volumenCompra === "" ||
-  //           cliente.volumenCompra === filtros.volumenCompra) &&
-  //         (filtros.presupuestoMensual === "" ||
-  //           cliente.presupuestoMensual === filtros.presupuestoMensual)
-  //       );
-  //     });
-  //     setFilteredCustomers(filtered);
-  //   }
-  // }, [filtros, searchQuery, customers]);
-
-  useEffect(() => {
-    if (customers) {
-      const filtered = customers.filter((cliente) => {
-        const matchesSearch =
+    return customers
+      .filter((cliente) => {
+        const matchSearch =
           searchQuery === "" ||
-          (cliente.nombre?.toLowerCase() || "").includes(
-            searchQuery.toLowerCase()
-          ) ||
-          (cliente.apellido?.toLowerCase() || "").includes(
-            searchQuery.toLowerCase()
-          ) ||
-          (
-            (cliente.nombre?.toLowerCase() || "") +
-            " " +
-            (cliente.apellido?.toLowerCase() || "")
-          ).includes(searchQuery.toLowerCase()) ||
-          (cliente.telefono?.toLowerCase() || "").includes(
-            searchQuery.toLowerCase()
-          ) ||
-          (cliente.correo?.toLowerCase() || "").includes(
-            searchQuery.toLowerCase()
-          );
+          `${cliente.nombre ?? ""} ${cliente.apellido ?? ""}`
+            .toLowerCase()
+            .includes(searchQuery.toLowerCase()) ||
+          cliente.telefono?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          cliente.correo?.toLowerCase().includes(searchQuery.toLowerCase());
 
-        // Verifica si el cliente tiene al menos un interés seleccionado
-        const matchesInterests =
+        const matchIntereses =
           filtros.intereses.length === 0 ||
           filtros.intereses.some((interes) =>
             cliente.categoriasInteres.includes(interes)
           );
 
         return (
-          matchesSearch &&
-          matchesInterests && // Aplicamos el filtro de intereses
+          matchSearch &&
+          matchIntereses &&
           (filtros.departamentoId === "" ||
             cliente.departamentoId === Number(filtros.departamentoId)) &&
           (filtros.municipioId === "" ||
@@ -338,62 +306,33 @@ export default function ClientesList() {
           (filtros.presupuestoMensual === "" ||
             cliente.presupuestoMensual === filtros.presupuestoMensual)
         );
+      })
+      .sort((a, b) => {
+        if (a[sortColumn] < b[sortColumn])
+          return sortDirection === "asc" ? -1 : 1;
+        if (a[sortColumn] > b[sortColumn])
+          return sortDirection === "asc" ? 1 : -1;
+        return 0;
       });
-      setFilteredCustomers(filtered);
-    }
-  }, [filtros, searchQuery, customers]);
+  }, [customers, filtros, searchQuery, sortColumn, sortDirection]);
 
-  console.log("Los departamentos son: ", departamentos);
-  console.log("los municipios son: ", municipios);
-  console.log("Los datos filtrados son: ", filteredCustomers);
-
-  const handleLimpiarFiltro = () => {
-    setFiltros({
-      nombre: "",
-      apellido: "",
-      departamentoId: "",
-      municipioId: "",
-      volumenCompra: "",
-      presupuestoMensual: "",
-      intereses: [],
-    });
-    setFilteredCustomers(customers);
-    setMunicipios([]);
-  };
-
-  const [sortColumn, setSortColumn] = useState<keyof Cliente>("nombre");
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-
-  const sortedClientes = [...(filteredCustomers || [])].sort((a, b) => {
-    if (a[sortColumn] < b[sortColumn]) return sortDirection === "asc" ? -1 : 1;
-    if (a[sortColumn] > b[sortColumn]) return sortDirection === "asc" ? 1 : -1;
-    return 0;
-  });
+  const totalPages = Math.ceil(
+    filteredAndSortedCustomers.length / itemsPerPage
+  );
+  const currentItems = filteredAndSortedCustomers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   const handleSort = (column: keyof Cliente) => {
     if (column === sortColumn) {
-      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+      setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
     } else {
       setSortColumn(column);
       setSortDirection("asc");
     }
   };
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 20;
-
-  // PAGINACIÓN
-  const totalPages = Math.ceil((sortedClientes?.length || 0) / itemsPerPage);
-
-  // Calcular el índice del último elemento de la página actual
-  const indexOfLastItem = currentPage * itemsPerPage;
-  // Calcular el índice del primer elemento de la página actual
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  // Obtener los elementos de la página actual
-  const currentItems =
-    sortedClientes && sortedClientes.slice(indexOfFirstItem, indexOfLastItem);
-
-  // Cambiar de página
   const onPageChange = (page: number) => {
     setCurrentPage(page);
   };
@@ -418,6 +357,7 @@ export default function ClientesList() {
             </div>
 
             <Select
+              value={filtros.departamentoId}
               onValueChange={(value) =>
                 handleSelectDepartamento({
                   target: { value },
@@ -543,7 +483,7 @@ export default function ClientesList() {
                 Lista de Clientes
               </div>
               <span className="font-bold">
-                {filteredCustomers?.length} resultados
+                {filteredAndSortedCustomers?.length} resultados
               </span>
             </CardTitle>
 

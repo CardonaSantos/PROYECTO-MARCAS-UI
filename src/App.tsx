@@ -47,7 +47,7 @@ import Saldos from "./Pages/Saldos/Saldos";
 import PaymentCreditPage from "./components/PDF/PDF CREDITOS/PaymentCreditPage";
 import Creditos from "./Pages/Creditos/Creditos";
 import Cancelados from "./Pages/Cancelados/Cancelados";
-
+// import MakeSalePage from "./Pages/MakeSales/MakeSalePage";
 function App() {
   return (
     <>

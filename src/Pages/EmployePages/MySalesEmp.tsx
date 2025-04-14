@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { SalesType, SaleTypeOne } from "../../Utils/Types/Sales";
 
 import { Badge } from "@/components/ui/badge";
@@ -17,9 +17,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp, Eye, FileSpreadsheet } from "lucide-react";
-import axios from "axios";
-import { toast } from "sonner";
+import { ChevronDown, ChevronUp, Eye } from "lucide-react";
+
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,23 +29,27 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import timezone from "dayjs/plugin/timezone";
+import isSameOrAfter from "dayjs/plugin/isSameOrAfter";
+import isSameOrBefore from "dayjs/plugin/isSameOrBefore";
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+dayjs.extend(isSameOrAfter);
+dayjs.extend(isSameOrBefore);
+dayjs.tz.setDefault("America/Guatemala");
+
 interface SalesTypeProp {
   sales: SalesType | null;
 }
 
-const API_URL = import.meta.env.VITE_API_URL;
-
-type Departamento = {
-  id: number;
-  nombre: string;
-};
-
 const MySalesEmp: React.FC<SalesTypeProp> = ({ sales }) => {
-  // const [municipios, setMunicipios] = useState<Municipio[]>([]);
-  const [departamentos, setDepartamentos] = useState<Departamento[]>([]);
-  console.log(departamentos);
+  const [selectedVenta, setSelectedVenta] = useState<SaleTypeOne | null>(null);
+  const [isProductsOpen, setIsProductsOpen] = useState(true);
 
-  //CREAR UN STATE PARA EL FILTRO, CON LAS PROPIEDADES QUE QUEREMOS FILTRAR Y QUE TIENE NUESTRO OBJETO A FILTRAR
   const [filtros, setFiltros] = useState({
     idVenta: "",
     nombreCliente: "",
@@ -57,6 +60,7 @@ const MySalesEmp: React.FC<SalesTypeProp> = ({ sales }) => {
     montoMin: "",
     montoMax: "",
   });
+
   const limpiarFiltro = () => {
     setFiltros({
       idVenta: "",
@@ -70,20 +74,6 @@ const MySalesEmp: React.FC<SalesTypeProp> = ({ sales }) => {
     });
   };
 
-  const getDepartamentos = async () => {
-    try {
-      const response = await axios.get(
-        `${API_URL}/customer-location/get-departamentos`
-      );
-      if (response.status === 200) {
-        setDepartamentos(response.data);
-      }
-    } catch (error) {
-      console.log(error);
-      toast.info("No hay municipios");
-    }
-  };
-
   const handleFiltroChange = (campo: string, valor: string) => {
     setFiltros((prev) => ({
       ...prev,
@@ -91,102 +81,44 @@ const MySalesEmp: React.FC<SalesTypeProp> = ({ sales }) => {
     }));
   };
 
-  useEffect(() => {
-    getDepartamentos();
-  }, []);
+  // Dentro del componente:
+  const ventasFiltradas = sales?.filter((venta) => {
+    const ventaFecha = dayjs.utc(venta.timestamp).tz(); // Convertir a zona horaria local
+    const fechaInicio = filtros.fechaInicio
+      ? dayjs(filtros.fechaInicio).startOf("day")
+      : null;
+    const fechaFin = filtros.fechaFin
+      ? dayjs(filtros.fechaFin).endOf("day")
+      : null;
 
-  // const handleGenerarCliente = (prospectoId: number) => {
-  //   // Aquí iría la lógica para generar un cliente a partir del prospecto
-  //   console.log(`Generando cliente para el prospecto ${prospectoId}`);
-  // };
+    return (
+      (!filtros.idVenta || venta.id === Number(filtros.idVenta)) &&
+      (!filtros.nombreCliente ||
+        venta.cliente?.nombre
+          ?.toLowerCase()
+          .includes(filtros.nombreCliente.toLowerCase())) &&
+      (!filtros.nombreVendedor ||
+        venta.vendedor?.nombre
+          ?.toLowerCase()
+          .includes(filtros.nombreVendedor.toLowerCase())) &&
+      (!filtros.metodoPago || venta.metodoPago === filtros.metodoPago) &&
+      // Filtrado por fecha mejorado
+      (!fechaInicio || ventaFecha.isSameOrAfter(fechaInicio, "day")) &&
+      (!fechaFin || ventaFecha.isSameOrBefore(fechaFin, "day")) &&
+      (!filtros.montoMin || venta.monto >= Number(filtros.montoMin)) &&
+      (!filtros.montoMax || venta.monto <= Number(filtros.montoMax))
+    );
+  });
+  console.log("las ventas son: ", sales);
 
-  //Filtrado
-  const ventasFiltradas =
-    sales &&
-    sales.filter((venta) => {
-      return (
-        (filtros.idVenta === "" || venta.id === Number(filtros.idVenta)) &&
-        venta.cliente.nombre
-          .toLowerCase()
-          .includes(filtros.nombreCliente.toLowerCase()) &&
-        venta.vendedor.nombre
-          .toLowerCase()
-          .includes(filtros.nombreVendedor.toLowerCase()) &&
-        (filtros.fechaInicio === "" ||
-          new Date(venta.timestamp) >= new Date(filtros.fechaInicio)) &&
-        (filtros.fechaFin === "" ||
-          new Date(venta.timestamp) <= new Date(filtros.fechaFin)) &&
-        (filtros.montoMin === "" || venta.monto >= Number(filtros.montoMin)) &&
-        (filtros.montoMax === "" || venta.monto <= Number(filtros.montoMax))
-      );
-    });
+  const ventasTotales = ventasFiltradas?.length ?? 0;
 
-  //SINO HAY NADA
-  if (sales && sales.length <= 0) {
+  if (!sales || sales.length <= 0) {
     return (
       <div>
         <h2 className="text-center text-xl font-bold">
-          No hay prospectos disponibles
+          No hay ventas disponibles
         </h2>
-      </div>
-    );
-  }
-  const ventasTotales = sales?.length;
-
-  const handleExport = () => {
-    // Logic to export inventory data
-    console.log("Exporting inventory data as:");
-  };
-  const [selectedVenta, setSelectedVenta] = useState<SaleTypeOne | null>(null); // Estado para manejar la venta seleccionada
-  // const [openModal, setOpenModal] = useState(null);
-  const [isProductsOpen, setIsProductsOpen] = useState(true);
-  console.log("Las ventas son: ", sales);
-
-  if (
-    !sales ||
-    sales.length <= 0 ||
-    (ventasFiltradas && ventasFiltradas?.length <= 0)
-  ) {
-    return (
-      <div>
-        <h2>No hay ventas disponibles</h2>
-        <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2">
-          <div className="flex-1">
-            <Input
-              type="text"
-              placeholder="Buscar por número de venta..."
-              value={filtros.idVenta}
-              onChange={(e) => handleFiltroChange("idVenta", e.target.value)}
-              className="w-full"
-            />
-          </div>
-
-          <div className="flex-1">
-            <Input
-              type="text"
-              placeholder="Buscar por nombre cliente..."
-              value={filtros.nombreCliente}
-              onChange={(e) =>
-                handleFiltroChange("nombreCliente", e.target.value)
-              }
-              className="w-full"
-            />
-          </div>
-
-          <div className="flex-1">
-            <Input
-              type="date"
-              value={filtros.fechaInicio}
-              onChange={(e) =>
-                handleFiltroChange("fechaInicio", e.target.value)
-              }
-              className="w-full"
-            />
-          </div>
-          <div className="flex-1">
-            <Button onClick={limpiarFiltro}>Limpiar filtro</Button>
-          </div>
-        </div>
       </div>
     );
   }
@@ -201,55 +133,38 @@ const MySalesEmp: React.FC<SalesTypeProp> = ({ sales }) => {
           <div className="text-xl font-semibold">
             Total ventas: {ventasTotales}
           </div>
-          <div className="flex space-x-2">
-            <Button variant="outline" onClick={() => handleExport()}>
-              <FileSpreadsheet className="mr-2 h-4 w-4" />
-              Exportar Excel
-            </Button>
-            {/* <Button variant="outline" onClick={() => handleExport()}>
-              <Download className="mr-2 h-4 w-4" />
-              Exportar CSV
-            </Button> */}
-          </div>
         </div>
 
-        {/* Filtros */}
         <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2">
-          <div className="flex-1">
-            <Input
-              type="text"
-              placeholder="Buscar por número de venta..."
-              value={filtros.idVenta}
-              onChange={(e) => handleFiltroChange("idVenta", e.target.value)}
-              className="w-full"
-            />
-          </div>
-
-          <div className="flex-1">
-            <Input
-              type="text"
-              placeholder="Buscar por nombre cliente..."
-              value={filtros.nombreCliente}
-              onChange={(e) =>
-                handleFiltroChange("nombreCliente", e.target.value)
-              }
-              className="w-full"
-            />
-          </div>
-
-          <div className="flex-1">
-            <Input
-              type="date"
-              value={filtros.fechaInicio}
-              onChange={(e) =>
-                handleFiltroChange("fechaInicio", e.target.value)
-              }
-              className="w-full"
-            />
-          </div>
-          <div className="flex-1">
-            <Button onClick={limpiarFiltro}>Limpiar filtro</Button>
-          </div>
+          <Input
+            type="text"
+            placeholder="Buscar por número de venta..."
+            value={filtros.idVenta}
+            onChange={(e) => handleFiltroChange("idVenta", e.target.value)}
+            className="w-full"
+          />
+          <Input
+            type="text"
+            placeholder="Buscar por nombre cliente..."
+            value={filtros.nombreCliente}
+            onChange={(e) =>
+              handleFiltroChange("nombreCliente", e.target.value)
+            }
+            className="w-full"
+          />
+          <Input
+            type="date"
+            value={filtros.fechaInicio}
+            onChange={(e) => handleFiltroChange("fechaInicio", e.target.value)}
+            className="w-full"
+          />
+          <Input
+            type="date"
+            value={filtros.fechaFin}
+            onChange={(e) => handleFiltroChange("fechaFin", e.target.value)}
+            className="w-full"
+          />
+          <Button onClick={limpiarFiltro}>Limpiar filtro</Button>
         </div>
       </div>
 

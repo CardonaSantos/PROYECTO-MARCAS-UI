@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   AlertTriangle,
   CheckCircle,
@@ -118,6 +118,7 @@ export default function StockPage() {
   const [unitCost, setUnitCost] = useState(0);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  console.log("Los productos son: ", products);
 
   useEffect(() => {
     const filtered = products.filter(
@@ -205,7 +206,8 @@ export default function StockPage() {
 
       // Si la promesa es exitosa, se maneja después
       setStockItems([]);
-      getProducts();
+      // getProducts();
+      fetchProducts(1);
       setOpenConfirmStock(false);
     } catch (error) {
       console.error(error);
@@ -219,21 +221,61 @@ export default function StockPage() {
     setQuantity(0);
     setUnitCost(0);
   };
+  const [page, setPage] = useState(1);
+  const loadMoreRef = useRef<HTMLDivElement>(null);
 
-  const getProducts = async () => {
-    setIsLoading(true);
+  const [isFetching, setIsFetching] = useState(false);
+  const itemsPerPage = 8;
+  const [totalPages, setTotalPages] = useState(1);
+
+  const fetchProducts = async (newPage: number) => {
+    setIsFetching(true);
     try {
-      const response = await axios.get(`${API_URL}/product`);
-      if (response.status === 200) {
-        setProducts(response.data.products);
+      const response = await axios.get(
+        `${API_URL}/product?page=${newPage}&limit=${itemsPerPage}`
+      );
+      if (response.status === 200 && Array.isArray(response.data.products)) {
+        setProducts((prev) => {
+          if (newPage === 1) {
+            return response.data.products; // ⚠️ Reemplaza productos si es la primera página
+          } else {
+            const mergedProducts = [...prev, ...response.data.products];
+            const uniqueProducts = mergedProducts.filter(
+              (product, index, self) =>
+                index === self.findIndex((p) => p.id === product.id)
+            );
+            return uniqueProducts;
+          }
+        });
+        console.log("response.data.products", response.data.products);
+
+        setTotalPages(response.data.totalPages);
       }
     } catch (error) {
-      console.error(error);
-      toast.error("No hay productos disponibles");
+      console.error("Error al obtener productos:", error);
     } finally {
-      setIsLoading(false);
+      setIsFetching(false);
     }
   };
+
+  useEffect(() => {
+    fetchProducts(page);
+  }, [page]);
+
+  // 🔍 Detectar scroll y cargar más productos
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && page < totalPages && !isFetching) {
+          setPage((prev) => prev + 1);
+        }
+      },
+      { threshold: 0.2 } // Cambiar de 1.0 a 0.2
+    );
+
+    if (loadMoreRef.current) observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [isFetching, page, totalPages]);
 
   const getProviders = async () => {
     try {
@@ -248,7 +290,6 @@ export default function StockPage() {
   };
 
   useEffect(() => {
-    getProducts();
     getProviders();
   }, []);
 
@@ -329,6 +370,7 @@ export default function StockPage() {
                   No se encontraron productos
                 </p>
               )}
+              <div ref={loadMoreRef} className="h-16"></div>
             </ScrollArea>
           </CardContent>
         </Card>

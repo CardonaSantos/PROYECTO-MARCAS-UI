@@ -76,52 +76,49 @@ const VentaPDF: React.FC<VentaProps> = ({ venta, empresa }) => {
       flexDirection: "column",
       backgroundColor: "#FFFFFF",
     },
-    section: {
-      margin: 10,
-      padding: 10,
-      flexGrow: 1,
-    },
     header: {
       flexDirection: "row",
       justifyContent: "space-between",
-      marginBottom: 10,
-      borderBottom: "2 solid #3f51b5",
-      paddingBottom: 10,
+      marginBottom: 20,
+      borderBottom: "2 solid #4F46E5",
+      paddingBottom: 15,
     },
     logo: {
-      width: 120,
-      height: 80,
+      width: 80,
+      height: 53,
     },
     companyInfo: {
       flexDirection: "column",
       alignItems: "flex-end",
     },
     companyName: {
-      fontSize: 16,
+      fontSize: 18,
       fontWeight: "bold",
-      color: "#3f51b5",
+      color: "#4F46E5",
       marginBottom: 5,
     },
     companyDetails: {
       fontSize: 9,
-      color: "#555",
+      color: "#4B5563",
       marginBottom: 2,
     },
     invoiceTitle: {
-      fontSize: 14,
+      fontSize: 16,
       fontWeight: "bold",
-      marginTop: 0,
-      marginBottom: 5,
-      color: "#3f51b5",
+      marginBottom: 15,
+      color: "#4F46E5",
       alignSelf: "center",
+      textTransform: "uppercase",
+      letterSpacing: 1,
     },
     customerInfo: {
       flexDirection: "row",
       justifyContent: "space-between",
-      marginBottom: 0,
-      backgroundColor: "#f5f5f5",
-      padding: 10,
-      borderRadius: 0,
+      marginBottom: 20,
+      backgroundColor: "#F3F4F6",
+      padding: 15,
+      borderRadius: 5,
+      borderLeft: "4 solid #4F46E5",
     },
     infoColumn: {
       flexDirection: "column",
@@ -130,46 +127,48 @@ const VentaPDF: React.FC<VentaProps> = ({ venta, empresa }) => {
     label: {
       fontSize: 10,
       fontWeight: "bold",
-      marginBottom: 3,
-      color: "#3f51b5",
+      marginBottom: 4,
+      color: "#4F46E5",
     },
     value: {
       fontSize: 10,
-      marginBottom: 5,
+      marginBottom: 6,
+      color: "#1F2937",
     },
     table: {
       flexDirection: "column",
       marginBottom: 20,
       borderWidth: 1,
-      borderColor: "#e0e0e0",
-      borderRadius: 0,
+      borderColor: "#E5E7EB",
+      borderRadius: 5,
       overflow: "hidden",
     },
     tableHeader: {
       flexDirection: "row",
       borderBottomWidth: 1,
-      borderBottomColor: "#3f51b5",
+      borderBottomColor: "#4F46E5",
       alignItems: "center",
-      height: 30,
-      backgroundColor: "#3f51b5",
+      height: 32,
+      backgroundColor: "#4F46E5",
     },
     tableHeaderCell: {
       color: "#FFFFFF",
       fontWeight: "bold",
-      padding: 5,
+      padding: 8,
     },
     tableRow: {
       flexDirection: "row",
       borderBottomWidth: 1,
-      borderBottomColor: "#e0e0e0",
+      borderBottomColor: "#E5E7EB",
       alignItems: "center",
-      height: 25,
+      minHeight: 30,
     },
     tableRowEven: {
-      backgroundColor: "#f9f9f9",
+      backgroundColor: "#F9FAFB",
     },
     tableCell: {
-      padding: 5,
+      padding: 8,
+      color: "#4B5563",
     },
     description: {
       width: "40%",
@@ -189,8 +188,8 @@ const VentaPDF: React.FC<VentaProps> = ({ venta, empresa }) => {
     footer: {
       flexDirection: "column",
       marginTop: 20,
-      borderTop: "2 solid #3f51b5",
-      paddingTop: 10,
+      borderTop: "2 solid #E5E7EB",
+      paddingTop: 15,
     },
     footerRow: {
       flexDirection: "row",
@@ -203,17 +202,80 @@ const VentaPDF: React.FC<VentaProps> = ({ venta, empresa }) => {
       width: "20%",
       textAlign: "right",
       marginRight: 10,
-      color: "#3f51b5",
+      color: "#4B5563",
     },
     footerValue: {
       fontSize: 10,
       width: "20%",
       textAlign: "right",
+      color: "#4B5563",
     },
-    total: {
-      fontSize: 12,
+    discountRow: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      marginBottom: 10,
+    },
+    discountLabel: {
+      fontSize: 8,
+      width: "20%",
+      textAlign: "right",
+      marginRight: 10,
+      color: "#6B7280",
+      fontStyle: "italic",
+    },
+    discountValue: {
+      fontSize: 8,
+      width: "20%",
+      textAlign: "right",
+      color: "#6B7280",
+      fontStyle: "italic",
+    },
+    totalRow: {
+      flexDirection: "row",
+      justifyContent: "flex-end",
+      marginTop: 5,
+      paddingTop: 8,
+      borderTop: "1 solid #E5E7EB",
+    },
+    totalLabel: {
+      fontSize: 14,
       fontWeight: "bold",
-      color: "#3f51b5",
+      width: "20%",
+      textAlign: "right",
+      marginRight: 10,
+      color: "#4F46E5",
+    },
+    totalValue: {
+      fontSize: 14,
+      fontWeight: "bold",
+      width: "20%",
+      textAlign: "right",
+      color: "#4F46E5",
+    },
+    thankYou: {
+      marginTop: 30,
+      fontSize: 11,
+      color: "#6B7280",
+      textAlign: "center",
+      fontStyle: "italic",
+    },
+    invoiceNumber: {
+      fontSize: 11,
+      fontWeight: "bold",
+      color: "#4F46E5",
+    },
+    invoiceDate: {
+      fontSize: 10,
+      color: "#4B5563",
+    },
+    paymentMethod: {
+      fontSize: 10,
+      color: "#4B5563",
+      padding: 4,
+      backgroundColor: "#EEF2FF",
+      borderRadius: 3,
+      alignSelf: "flex-start",
+      marginTop: 5,
     },
   });
 
@@ -226,14 +288,15 @@ const VentaPDF: React.FC<VentaProps> = ({ venta, empresa }) => {
       </Document>
     );
   }
+
   const Header = () => (
     <View style={styles.header}>
-      <Image style={{ width: 80, height: 53 }} src={logo} />
+      <Image style={styles.logo} src={logo || "/placeholder.svg"} />
       <View style={styles.companyInfo}>
         <Text style={styles.companyName}>{empresa.nombre}</Text>
         <Text style={styles.companyDetails}>{empresa.direccion}</Text>
         <Text style={styles.companyDetails}>
-          Tel: {empresa.telefono} | PBX: {empresa.pbx}
+          Tel: {empresa.telefono} {empresa.pbx && `| PBX: ${empresa.pbx}`}
         </Text>
         <Text style={styles.companyDetails}>{empresa.email}</Text>
         {empresa.website && (
@@ -253,15 +316,14 @@ const VentaPDF: React.FC<VentaProps> = ({ venta, empresa }) => {
             : venta.cliente.nombre}
         </Text>
         <Text style={styles.value}>Tel: {venta.cliente.telefono}</Text>
-        <Text style={styles.value}>{venta.cliente.direccion}</Text>
+        <Text style={styles.value}>Dirección: {venta.cliente.direccion}</Text>
       </View>
       <View style={styles.infoColumn}>
-        <Text style={styles.label}>Factura No.:</Text>
-        <Text style={styles.value}>#0{venta.id}</Text>
-        <Text style={styles.label}>Fecha de Emisión:</Text>
-        <Text style={styles.value}>{formatearFecha(venta.timestamp)}</Text>
-        <Text style={styles.label}>Método de Pago:</Text>
-        <Text style={styles.value}>{venta.metodoPago}</Text>
+        <Text style={styles.invoiceNumber}>Factura #0{venta.id}</Text>
+        <Text style={styles.invoiceDate}>
+          Fecha: {formatearFecha(venta.timestamp)}
+        </Text>
+        <Text style={styles.paymentMethod}>Pago: {venta.metodoPago}</Text>
       </View>
     </View>
   );
@@ -305,38 +367,34 @@ const VentaPDF: React.FC<VentaProps> = ({ venta, empresa }) => {
   );
 
   const Footer = () => {
-    const subtotal = venta.productos.reduce(
-      (sum, item) => sum + item.precio * item.cantidad,
-      0
-    );
-    const descuento = venta.descuento || 0;
     const total =
-      venta.montoConDescuento || subtotal - (subtotal * descuento) / 100;
+      venta.montoConDescuento ||
+      venta.productos.reduce(
+        (sum, item) => sum + item.precio * item.cantidad,
+        0
+      ) *
+        (1 - (venta.descuento || 0) / 100);
+
+    const descuento = venta.descuento || 0;
 
     return (
       <View style={styles.footer}>
-        <View style={styles.footerRow}>
-          <Text style={styles.footerLabel}>Subtotal:</Text>
-          <Text style={styles.footerValue}>
-            {new Intl.NumberFormat("es-GT", {
-              style: "currency",
-              currency: "GTQ",
-            }).format(subtotal)}
-          </Text>
-        </View>
-        <View style={styles.footerRow}>
-          <Text style={styles.footerLabel}>Descuento:</Text>
-          <Text style={styles.footerValue}>{descuento}%</Text>
-        </View>
-        <View style={styles.footerRow}>
-          <Text style={[styles.footerLabel, styles.total]}>Total:</Text>
-          <Text style={[styles.footerValue, styles.total]}>
+        {descuento > 0 && (
+          <View style={styles.discountRow}>
+            <Text style={styles.discountLabel}>Descuento aplicado:</Text>
+            <Text style={styles.discountValue}>{descuento}%</Text>
+          </View>
+        )}
+        <View style={styles.totalRow}>
+          <Text style={styles.totalLabel}>TOTAL:</Text>
+          <Text style={styles.totalValue}>
             {new Intl.NumberFormat("es-GT", {
               style: "currency",
               currency: "GTQ",
             }).format(total)}
           </Text>
         </View>
+        <Text style={styles.thankYou}>¡Gracias por su compra!</Text>
       </View>
     );
   };

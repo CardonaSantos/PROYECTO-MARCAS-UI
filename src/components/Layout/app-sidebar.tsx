@@ -1,3 +1,4 @@
+// Sidebar organizado por grupos con accesibilidad y estética
 import {
   BarChart3,
   Boxes,
@@ -10,7 +11,6 @@ import {
   CreditCard,
   FileClock,
   FileSpreadsheet,
-  // FolderOpen,
   Home,
   MapPin,
   MapPinned,
@@ -46,54 +46,96 @@ import {
   TooltipTrigger,
 } from "../ui/tooltip";
 
-const menuItems = [
-  { icon: Home, label: "Página Principal", href: "/" },
-  { icon: ShoppingBag, label: "Nueva Venta", href: "/hacer-ventas" },
-  { icon: Users, label: "Directorio de Clientes", href: "/clientes" },
-  { icon: UserPlus, label: "Registrar Cliente", href: "/crear-cliente" },
-  { icon: ClipboardList, label: "Historial de Ventas", href: "/ventas" },
-  { icon: CreditCard, label: "Gestión de Créditos", href: "/creditos" },
+const adminGroups = [
   {
-    icon: Calendar,
-    label: "Registro de Prospectos",
-    href: "/historial-prospectos",
-  },
-  { icon: MapPin, label: "Registro de Visitas", href: "/historial-visitas" },
-  { icon: UserCog, label: "Administración de Usuarios", href: "/usuarios" },
-  { icon: MapPinned, label: "Ubicación de Empleados", href: "/empleados" },
-  {
-    icon: FileClock,
-    label: "Control de Asistencia",
-    href: "/historial-empleados-check",
+    label: "Dashboard",
+    items: [
+      { icon: Home, label: "Página Principal", href: "/" },
+      { icon: PieChart, label: "Estadísticas y Gráficos", href: "/analisis" },
+      {
+        icon: FileSpreadsheet,
+        label: "Informes y Reportes",
+        href: "/reportes",
+      },
+      { icon: Wallet, label: "Balance de Cuentas", href: "/saldos" },
+    ],
   },
   {
-    icon: Clock,
-    label: "Registro de Jornada",
-    href: "/registrar-entrada-salida",
+    label: "Ventas y Clientes",
+    items: [
+      { icon: ShoppingBag, label: "Nueva Venta", href: "/hacer-ventas" },
+      { icon: ClipboardList, label: "Historial de Ventas", href: "/ventas" },
+      { icon: Users, label: "Directorio de Clientes", href: "/clientes" },
+      { icon: UserPlus, label: "Registrar Cliente", href: "/crear-cliente" },
+      { icon: CreditCard, label: "Gestión de Créditos", href: "/creditos" },
+    ],
   },
-  { icon: Boxes, label: "Catálogo de Productos", href: "/ver-productos" },
-  { icon: PackagePlus, label: "Nuevo Producto", href: "/crear-productos" },
-
-  // {
-  //   icon: FolderOpen,
-  //   label: "Seguimiento de Cancelaciones",
-  //   href: "/seguimiento-de-cancelaciones",
-  // },
-
-  { icon: BarChart3, label: "Control de Inventario", href: "/asignar-stock" },
-  { icon: Tags, label: "Categorías de Productos", href: "/crear-categoria" },
-  { icon: Truck, label: "Directorio de Proveedores", href: "/proveedor" },
-  { icon: Box, label: "Registro de Entregas", href: "/registro-entregas" },
-  { icon: CalendarPlus, label: "Programar Visita", href: "/visita" },
-  { icon: UserPlus2, label: "Nuevo Prospecto", href: "/prospecto" },
-  { icon: PieChart, label: "Estadísticas y Gráficos", href: "/analisis" },
-  { icon: FileSpreadsheet, label: "Informes y Reportes", href: "/reportes" },
-  { icon: Wallet, label: "Balance de Cuentas", href: "/saldos" },
-  // { icon: KeyRound, label: "Restablecer Contraseña", href: "/recovery" },
-  { icon: Building2, label: "Información Corporativa", href: "/empresa-info" },
+  {
+    label: "Prospectos y Visitas",
+    items: [
+      {
+        icon: Calendar,
+        label: "Registro de Prospectos",
+        href: "/historial-prospectos",
+      },
+      {
+        icon: MapPin,
+        label: "Registro de Visitas",
+        href: "/historial-visitas",
+      },
+      { icon: CalendarPlus, label: "Programar Visita", href: "/visita" },
+      { icon: UserPlus2, label: "Nuevo Prospecto", href: "/prospecto" },
+    ],
+  },
+  {
+    label: "Empleados",
+    items: [
+      { icon: UserCog, label: "Administración de Usuarios", href: "/usuarios" },
+      { icon: MapPinned, label: "Ubicación de Empleados", href: "/empleados" },
+      {
+        icon: FileClock,
+        label: "Control de Asistencia",
+        href: "/historial-empleados-check",
+      },
+      {
+        icon: Clock,
+        label: "Registro de Jornada",
+        href: "/registrar-entrada-salida",
+      },
+    ],
+  },
+  {
+    label: "Inventario",
+    items: [
+      { icon: Boxes, label: "Catálogo de Productos", href: "/ver-productos" },
+      { icon: PackagePlus, label: "Nuevo Producto", href: "/crear-productos" },
+      {
+        icon: Tags,
+        label: "Categorías de Productos",
+        href: "/crear-categoria",
+      },
+      {
+        icon: BarChart3,
+        label: "Control de Inventario",
+        href: "/asignar-stock",
+      },
+      { icon: Truck, label: "Directorio de Proveedores", href: "/proveedor" },
+      { icon: Box, label: "Registro de Entregas", href: "/registro-entregas" },
+    ],
+  },
+  {
+    label: "Empresa",
+    items: [
+      {
+        icon: Building2,
+        label: "Información Corporativa",
+        href: "/empresa-info",
+      },
+    ],
+  },
 ];
 
-const menuVendedor = [
+const vendedorRoutes = [
   { icon: Home, label: "Inicio del Empleado", href: "/dashboard-empleado" },
   { icon: ShoppingBag, label: "Realizar Venta", href: "/hacer-ventas" },
   { icon: Users, label: "Gestión de Clientes", href: "/clientes" },
@@ -106,47 +148,79 @@ const menuVendedor = [
   { icon: Star, label: "Registrar Prospecto", href: "/prospecto" },
   { icon: ShoppingCart, label: "Mis Ventas", href: "/mis-ventas" },
 ];
+
 export function AppSidebar() {
   const rolUser = useStore((state) => state.userRol);
 
-  function retornarRutas() {
-    if (rolUser === "ADMIN") {
-      return menuItems;
-    } else {
-      return menuVendedor;
-    }
-  }
+  const isAdmin = rolUser === "ADMIN";
 
   return (
     <Sidebar variant="floating" collapsible="icon">
-      <SidebarContent className="">
+      <SidebarContent>
         <div className="overflow-y-auto">
-          <SidebarGroup>
-            <SidebarGroupLabel>Secciones</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {retornarRutas().map((item) => (
-                  <SidebarMenuItem key={item.label}>
-                    <SidebarMenuButton asChild>
-                      <Link to={item.href} className="flex items-center gap-2">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <item.icon className="h-4 w-4 shrink-0" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{item.label}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+          {isAdmin ? (
+            adminGroups.map((group) => (
+              <SidebarGroup key={group.label}>
+                <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {group.items.map((item) => (
+                      <SidebarMenuItem key={item.label}>
+                        <SidebarMenuButton asChild>
+                          <Link
+                            to={item.href}
+                            className="flex items-center gap-2"
+                          >
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <item.icon className="h-4 w-4 shrink-0" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{item.label}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                            <span>{item.label}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            ))
+          ) : (
+            <SidebarGroup>
+              <SidebarGroupLabel>Empleado</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {vendedorRoutes.map((item) => (
+                    <SidebarMenuItem key={item.label}>
+                      <SidebarMenuButton asChild>
+                        <Link
+                          to={item.href}
+                          className="flex items-center gap-2"
+                        >
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <item.icon className="h-4 w-4 shrink-0" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{item.label}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          )}
         </div>
       </SidebarContent>
     </Sidebar>
