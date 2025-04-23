@@ -42,7 +42,7 @@ import {
   Percent,
   Plus,
   Printer,
-  Search,
+  // Search,
   ShoppingCart,
   Text,
   Trash2,
@@ -233,10 +233,7 @@ export default function MakeSale() {
       ...prev,
       [id]: Math.max(
         1,
-        Math.min(
-          value,
-          filteredProducts.find((p) => p.id === id)?.stock?.cantidad || 1
-        )
+        Math.min(value, products.find((p) => p.id === id)?.stock?.cantidad || 1)
       ),
     }));
   };
@@ -245,7 +242,7 @@ export default function MakeSale() {
   const empresaId = useStore((state) => state.sucursalId) ?? 0;
   // Estados
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("Todas");
+  const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedMetodPago, setSelectedMetodPago] = useState("CONTADO");
   const [cart, setCart] = useState<(Producto & { quantity: number })[]>([]); // Agregamos `quantity` al estado del carrito
   const [selectedCustomer, setSelectedCustomer] = useState<Cliente | null>(
@@ -261,60 +258,79 @@ export default function MakeSale() {
   const [showCartModal, setShowCartModal] = useState(false);
   // 📌 Estados para productos y paginación
   const [products, setProducts] = useState<Producto[]>([]);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  // const [page, setPage] = useState(1);
   const [isFetching, setIsFetching] = useState(false);
-  const loadMoreRef = useRef<HTMLDivElement>(null);
-  const itemsPerPage = 8;
+
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
+
+  // 📌 Estados para paginación CORREGIDOS
+  const [page, setPage] = useState(1); // Volvemos a usar página
+  const [hasMore, setHasMore] = useState(true);
+  const itemsPerPage = 8; // Fijo, no variable
 
   const fetchProducts = async (newPage: number) => {
     setIsFetching(true);
     try {
-      const response = await axios.get(
-        `${API_URL}/product?page=${newPage}&limit=${itemsPerPage}`
-      );
-      if (response.status === 200 && Array.isArray(response.data.products)) {
-        setProducts((prev) => {
-          if (newPage === 1) {
-            return response.data.products; // ⚠️ Reemplaza productos si es la primera página
-          } else {
-            const mergedProducts = [...prev, ...response.data.products];
-            const uniqueProducts = mergedProducts.filter(
-              (product, index, self) =>
-                index === self.findIndex((p) => p.id === product.id)
-            );
-            return uniqueProducts;
-          }
-        });
-        console.log("response.data.products", response.data.products);
+      const resp = await axios.get(`${API_URL}/product/search`, {
+        params: {
+          query: searchTerm,
+          categoria: selectedCategory,
+          page: newPage,
+          limit: itemsPerPage,
+        },
+      });
 
-        setTotalPages(response.data.totalPages);
+      if (resp.status === 200) {
+        // Filtrar duplicados antes de actualizar el estado
+        const newProducts = resp.data.products.filter(
+          (newProduct: Producto) =>
+            !products.some((existing) => existing.id === newProduct.id)
+        );
+
+        setProducts((prev) => [...prev, ...newProducts]);
+        setHasMore(newPage < resp.data.totalPages);
       }
-    } catch (error) {
-      console.error("Error al obtener productos:", error);
+    } catch (e) {
+      console.error(e);
     } finally {
       setIsFetching(false);
     }
   };
 
+  // 🔄 Efecto para cargar al cambiar página
   useEffect(() => {
+    if (page === 1) return; // Evitar doble carga inicial
     fetchProducts(page);
   }, [page]);
 
-  // 🔍 Detectar scroll y cargar más productos
+  // 🔄 Efecto para reiniciar al buscar
   useEffect(() => {
+    setPage(1);
+    setProducts([]);
+    fetchProducts(1);
+  }, [searchTerm, selectedCategory]);
+
+  // 🎯 Intersection Observer actualizado
+  useEffect(() => {
+    if (!sentinelRef.current || !hasMore || isFetching) return;
+
     const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && page < totalPages && !isFetching) {
+      ([entry]) => {
+        if (entry.isIntersecting) {
           setPage((prev) => prev + 1);
         }
       },
-      { threshold: 0.2 } // Cambiar de 1.0 a 0.2
+      {
+        root: viewportRef.current,
+        rootMargin: "200px",
+        threshold: 0.1,
+      }
     );
 
-    if (loadMoreRef.current) observer.observe(loadMoreRef.current);
+    observer.observe(sentinelRef.current);
     return () => observer.disconnect();
-  }, [isFetching, page, totalPages]);
+  }, [hasMore, isFetching]);
 
   // Obtener clientes
   useEffect(() => {
@@ -403,19 +419,6 @@ export default function MakeSale() {
 
     return subtotal;
   };
-
-  const filteredProducts = products.filter(
-    (product) =>
-      (searchTerm === "" ||
-        product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.codigoProducto
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase())) &&
-      (selectedCategory === "Todas" ||
-        product.categorias.some(
-          (cat) => cat.categoria.nombre === selectedCategory
-        ))
-  );
 
   const formatoCartData = (
     cart: (Producto & { quantity: number })[]
@@ -512,8 +515,14 @@ export default function MakeSale() {
         setConfirmSale(false);
         setCantidades({}); // Limpiar cantidades al finalizar la venta
         setCantidadSeleccionada(1);
-        fetchProducts(1); // Refrescar productos después de la venta
+        // setPage(1);
+        // setItemsPerPage(1);
+        setSearchTerm("");
+
         setPage(1);
+        setProducts([]);
+        fetchProducts(1);
+
         setTimeout(() => {
           setOpenDialogSaleMade(true);
         }, 1500);
@@ -622,8 +631,13 @@ export default function MakeSale() {
         setCantidadSeleccionada(1);
 
         // Refrescar productos y reiniciar paginación
-        fetchProducts(1);
+        // fetchProducts(1);
+        // setPage(1);
+        // setItemsPerPage(1);
         setPage(1);
+        setProducts([]);
+        fetchProducts(1); // ✅
+        setSearchTerm("");
 
         setTimeout(() => {
           setOpenDialogSaleMade(true);
@@ -738,21 +752,6 @@ export default function MakeSale() {
     );
   }
   const [confirmSale, setConfirmSale] = useState(false);
-  useEffect(() => {
-    const handleScroll = () => {
-      if (loadMoreRef.current) {
-        const rect = loadMoreRef.current.getBoundingClientRect();
-        const isVisible = rect.top >= 0 && rect.bottom <= window.innerHeight;
-
-        if (isVisible && page < totalPages && !isFetching) {
-          setPage((prev) => prev + 1);
-        }
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [page, isFetching, totalPages]);
 
   interface ProductImageCarouselProps {
     images: { url: string }[];
@@ -1339,7 +1338,18 @@ export default function MakeSale() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 pr-4 py-2 w-full"
                 />
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+
+                {/* Botón de limpiar en la posición de la lupa */}
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm("")}
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 p-1"
+                    aria-label="Limpiar búsqueda"
+                  >
+                    <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+                  </button>
+                )}
               </div>
               <Select
                 value={selectedCategory}
@@ -1361,7 +1371,12 @@ export default function MakeSale() {
           </CardContent>
         </Card>
 
-        <ScrollArea className="h-[calc(100vh-100px)] shadow-xl rounded-lg">
+        {/* <ScrollArea className="h-[calc(100vh-100px)] shadow-xl rounded-lg"> */}
+
+        <ScrollArea
+          ref={viewportRef} // ✅ Añade ref al contenedor de scroll
+          className="h-[calc(100vh-100px)] shadow-xl rounded-lg"
+        >
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
             {/* SKELETON XD */}
             {isFetching &&
@@ -1376,7 +1391,7 @@ export default function MakeSale() {
                 </div>
               ))}
 
-            {filteredProducts.map((product) => (
+            {products.map((product) => (
               <motion.div
                 key={`product-${product.id}`}
                 initial={{ opacity: 0, y: 20 }}
@@ -1639,7 +1654,9 @@ export default function MakeSale() {
           </Dialog>
 
           {/* DETECTOR DE CARGA dentro de ScrollArea */}
-          <div ref={loadMoreRef} className="h-16"></div>
+          {/* <div ref={loadMoreRef} className="h-16"></div> */}
+          {/* </div> */}
+          <div ref={sentinelRef} className="h-8"></div>
         </ScrollArea>
 
         {isFetching && (
