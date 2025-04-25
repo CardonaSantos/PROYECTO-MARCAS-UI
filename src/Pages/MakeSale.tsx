@@ -269,49 +269,64 @@ export default function MakeSale() {
   const [hasMore, setHasMore] = useState(true);
   const itemsPerPage = 8; // Fijo, no variable
 
+  const cancelToken = axios.CancelToken;
+  let cancel: any;
+
   const fetchProducts = async (newPage: number) => {
     setIsFetching(true);
     try {
+      if (cancel) cancel();
+
       const resp = await axios.get(`${API_URL}/product/search`, {
         params: {
-          query: searchTerm,
+          query: searchTerm.trim(),
           categoria: selectedCategory,
           page: newPage,
           limit: itemsPerPage,
         },
+        cancelToken: new cancelToken((c) => (cancel = c)),
       });
 
       if (resp.status === 200) {
-        // Filtrar duplicados antes de actualizar el estado
-        const newProducts = resp.data.products.filter(
-          (newProduct: Producto) =>
-            !products.some((existing) => existing.id === newProduct.id)
-        );
-
-        setProducts((prev) => [...prev, ...newProducts]);
+        const fetched = resp.data.products as Producto[];
+        setProducts((prev) => {
+          if (newPage === 1) {
+            // página 1: sustituye todo
+            return fetched;
+          }
+          // páginas >1: sólo añade no-duplicados
+          const toAdd = fetched.filter(
+            (fp) => !prev.some((p) => p.id === fp.id)
+          );
+          return [...prev, ...toAdd];
+        });
         setHasMore(newPage < resp.data.totalPages);
       }
     } catch (e) {
-      console.error(e);
+      if (axios.isCancel(e)) {
+        console.log("Request canceled:", e.message);
+      } else {
+        console.error(e);
+      }
     } finally {
       setIsFetching(false);
     }
   };
 
-  // 🔄 Efecto para cargar al cambiar página
   useEffect(() => {
-    if (page === 1) return; // Evitar doble carga inicial
+    if (page !== 1) {
+      // fuerza el cambio de página → activará el efecto [page]
+      setPage(1);
+    } else {
+      // page ya era 1 → disparo explícito de la búsqueda
+      fetchProducts(1);
+    }
+  }, [searchTerm, selectedCategory]);
+
+  useEffect(() => {
     fetchProducts(page);
   }, [page]);
 
-  // 🔄 Efecto para reiniciar al buscar
-  useEffect(() => {
-    setPage(1);
-    setProducts([]);
-    fetchProducts(1);
-  }, [searchTerm, selectedCategory]);
-
-  // 🎯 Intersection Observer actualizado
   useEffect(() => {
     if (!sentinelRef.current || !hasMore || isFetching) return;
 
@@ -321,18 +336,12 @@ export default function MakeSale() {
           setPage((prev) => prev + 1);
         }
       },
-      {
-        root: viewportRef.current,
-        rootMargin: "200px",
-        threshold: 0.1,
-      }
+      { root: viewportRef.current, rootMargin: "200px", threshold: 0.1 }
     );
 
     observer.observe(sentinelRef.current);
     return () => observer.disconnect();
   }, [hasMore, isFetching]);
-
-  // Obtener clientes
   useEffect(() => {
     const getCustomers = async () => {
       try {
@@ -1391,123 +1400,126 @@ export default function MakeSale() {
                 </div>
               ))}
 
-            {products.map((product) => (
-              <motion.div
-                key={`product-${product.id}`}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <Card
-                  className="h-full flex flex-col hover:shadow-lg transition-all duration-300"
-                  onMouseEnter={() => setHoveredProduct(product.id)}
+            {products &&
+              products.map((product) => (
+                <motion.div
+                  key={`product-${product.id}`}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
                 >
-                  <CardContent className="flex-grow p-4 relative">
-                    <div className="aspect-w-1 aspect-h-1 w-full mb-4 relative">
-                      <ProductImageCarousel
-                        images={product.imagenes}
-                        productName={product.nombre}
-                      />
-                      {hoveredProduct === product.id && (
-                        <Button
-                          variant="secondary"
-                          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/60 text-white p-3 rounded-full transition-all duration-300"
-                          onClick={() => handleQuickView(product)}
-                        >
-                          <Eye className="h-6 w-6" />
-                        </Button>
-                      )}
-                    </div>
+                  <Card
+                    className="h-full flex flex-col hover:shadow-lg transition-all duration-300"
+                    onMouseEnter={() => setHoveredProduct(product.id)}
+                  >
+                    <CardContent className="flex-grow p-4 relative">
+                      <div className="aspect-w-1 aspect-h-1 w-full mb-4 relative">
+                        <ProductImageCarousel
+                          images={product.imagenes}
+                          productName={product.nombre}
+                        />
+                        {hoveredProduct === product.id && (
+                          <Button
+                            variant="secondary"
+                            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/60 text-white p-3 rounded-full transition-all duration-300"
+                            onClick={() => handleQuickView(product)}
+                          >
+                            <Eye className="h-6 w-6" />
+                          </Button>
+                        )}
+                      </div>
 
-                    <h3 className="font-semibold text-lg mb-2 line-clamp-2">
-                      {product.nombre}
-                    </h3>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      {product.codigoProducto}
-                    </p>
-
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {product.categorias.map((cat, index) => (
-                        <Badge
-                          key={`category-${product.id}-${index}`}
-                          variant="secondary"
-                        >
-                          {cat.categoria.nombre}
-                        </Badge>
-                      ))}
-                    </div>
-
-                    <div className="flex justify-between items-center mb-2">
-                      <p className="font-bold text-lg">
-                        Q{product.precio.toFixed(2)}
+                      <h3 className="font-semibold text-lg mb-2 line-clamp-2">
+                        {product.nombre}
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {product.codigoProducto}
                       </p>
-                      <Badge
-                        variant={
-                          product.stock && product.stock.cantidad > 0
-                            ? "default"
-                            : "destructive"
+
+                      <div className="flex flex-wrap gap-2 mb-2">
+                        {product.categorias.map((cat, index) => (
+                          <Badge
+                            key={`category-${product.id}-${index}`}
+                            variant="secondary"
+                          >
+                            {cat.categoria.nombre}
+                          </Badge>
+                        ))}
+                      </div>
+
+                      <div className="flex justify-between items-center mb-2">
+                        <p className="font-bold text-lg">
+                          Q{product.precio.toFixed(2)}
+                        </p>
+                        <Badge
+                          variant={
+                            product.stock && product.stock.cantidad > 0
+                              ? "default"
+                              : "destructive"
+                          }
+                        >
+                          {product.stock && product.stock.cantidad > 0
+                            ? `${product.stock.cantidad} En stock`
+                            : "Agotado"}
+                        </Badge>
+                      </div>
+
+                      {/* Input para la cantidad */}
+                      <div className="flex items-center gap-2 mt-4">
+                        <Input
+                          type="number"
+                          min="1"
+                          max={product.stock?.cantidad}
+                          value={cantidades[product.id] ?? 1}
+                          onChange={(e) =>
+                            handleCantidadChange(
+                              product.id,
+                              parseInt(e.target.value) || 1
+                            )
+                          }
+                          className="w-16 text-center"
+                          aria-label={`Cantidad de ${product.nombre}`}
+                        />
+                      </div>
+                    </CardContent>
+
+                    <CardFooter className="p-4">
+                      <Button
+                        onClick={() => {
+                          const cantidad = cantidades[product.id] ?? 1;
+                          if (cart.some((prod) => prod.id === product.id)) {
+                            removeFromCart(product.id);
+                          } else {
+                            addToCart(product, cantidad);
+                          }
+                        }}
+                        disabled={
+                          !product.stock || product.stock.cantidad === 0
                         }
+                        className={`w-full font-semibold text-white rounded-lg shadow-md ${
+                          cart.some((prod) => prod.id === product.id)
+                            ? "bg-red-500 hover:bg-red-600"
+                            : "bg-blue-700 hover:bg-blue-800"
+                        }`}
                       >
-                        {product.stock && product.stock.cantidad > 0
-                          ? `${product.stock.cantidad} En stock`
-                          : "Agotado"}
-                      </Badge>
-                    </div>
-
-                    {/* Input para la cantidad */}
-                    <div className="flex items-center gap-2 mt-4">
-                      <Input
-                        type="number"
-                        min="1"
-                        max={product.stock?.cantidad}
-                        value={cantidades[product.id] ?? 1}
-                        onChange={(e) =>
-                          handleCantidadChange(
-                            product.id,
-                            parseInt(e.target.value) || 1
-                          )
-                        }
-                        className="w-16 text-center"
-                        aria-label={`Cantidad de ${product.nombre}`}
-                      />
-                    </div>
-                  </CardContent>
-
-                  <CardFooter className="p-4">
-                    <Button
-                      onClick={() => {
-                        const cantidad = cantidades[product.id] ?? 1;
-                        if (cart.some((prod) => prod.id === product.id)) {
-                          removeFromCart(product.id);
-                        } else {
-                          addToCart(product, cantidad);
-                        }
-                      }}
-                      disabled={!product.stock || product.stock.cantidad === 0}
-                      className={`w-full font-semibold text-white rounded-lg shadow-md ${
-                        cart.some((prod) => prod.id === product.id)
-                          ? "bg-red-500 hover:bg-red-600"
-                          : "bg-blue-700 hover:bg-blue-800"
-                      }`}
-                    >
-                      {cart.some((prod) => prod.id === product.id) ? (
-                        <>
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Quitar del carrito
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="mr-2 h-4 w-4" />
-                          Añadir{" "}
-                          {cantidades[product.id] > 1 &&
-                            `(${cantidades[product.id]})`}
-                        </>
-                      )}
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </motion.div>
-            ))}
+                        {cart.some((prod) => prod.id === product.id) ? (
+                          <>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Quitar del carrito
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Añadir{" "}
+                            {cantidades[product.id] > 1 &&
+                              `(${cantidades[product.id]})`}
+                          </>
+                        )}
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                </motion.div>
+              ))}
           </div>
 
           <Dialog open={isQuickViewOpen} onOpenChange={setIsQuickViewOpen}>
