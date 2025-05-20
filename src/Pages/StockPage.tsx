@@ -112,7 +112,7 @@ export default function StockPage() {
   const [providers, setProviders] = useState<Proveedor[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Producto | null>(null);
-  const [filteredProducts, setFilteredProducts] = useState<Producto[]>([]);
+  // const [filteredProducts, setFilteredProducts] = useState<Producto[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<number | null>(null);
   const [quantity, setQuantity] = useState(0);
   const [unitCost, setUnitCost] = useState(0);
@@ -121,13 +121,12 @@ export default function StockPage() {
   console.log("Los productos son: ", products);
 
   useEffect(() => {
-    const filtered = products.filter(
-      (product) =>
-        product.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.codigoProducto.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    setFilteredProducts(filtered);
-  }, [searchTerm, products]);
+    if (page !== 1) {
+      setPage(1);
+    } else {
+      fetchProducts(1);
+    }
+  }, [searchTerm]);
 
   const handleAddToStock = () => {
     if (selectedProduct && quantity > 0 && unitCost > 0 && selectedProvider) {
@@ -231,24 +230,25 @@ export default function StockPage() {
   const fetchProducts = async (newPage: number) => {
     setIsFetching(true);
     try {
-      const response = await axios.get(
-        `${API_URL}/product?page=${newPage}&limit=${itemsPerPage}`
-      );
-      if (response.status === 200 && Array.isArray(response.data.products)) {
-        setProducts((prev) => {
-          if (newPage === 1) {
-            return response.data.products; // ⚠️ Reemplaza productos si es la primera página
-          } else {
-            const mergedProducts = [...prev, ...response.data.products];
-            const uniqueProducts = mergedProducts.filter(
-              (product, index, self) =>
-                index === self.findIndex((p) => p.id === product.id)
-            );
-            return uniqueProducts;
-          }
-        });
-        console.log("response.data.products", response.data.products);
+      const response = await axios.get(`${API_URL}/product/search`, {
+        params: {
+          query: searchTerm.trim(),
+          page: newPage,
+          limit: itemsPerPage,
+        },
+      });
 
+      if (response.status === 200) {
+        setProducts((prev) => {
+          if (newPage === 1) return response.data.products;
+          return [
+            ...prev,
+            ...response.data.products.filter(
+              (p: Producto) =>
+                !prev.some((existing: Producto) => existing.id === p.id)
+            ),
+          ];
+        });
         setTotalPages(response.data.totalPages);
       }
     } catch (error) {
@@ -322,10 +322,24 @@ export default function StockPage() {
               <label htmlFor="product-search" className="sr-only">
                 Buscar producto
               </label>
-              <Search
-                className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground"
-                aria-hidden="true"
-              />
+
+              {/* Icono de búsqueda o botón de limpieza */}
+              {searchTerm ? (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm("")}
+                  className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground hover:text-foreground"
+                  aria-label="Limpiar búsqueda"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : (
+                <Search
+                  className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground"
+                  aria-hidden="true"
+                />
+              )}
+
               <Input
                 id="product-search"
                 type="search"
@@ -336,9 +350,9 @@ export default function StockPage() {
               />
             </div>
             <ScrollArea className="h-[300px] mt-4">
-              {filteredProducts.length > 0 ? (
+              {products.length > 0 ? (
                 <ul role="listbox" aria-label="Lista de productos">
-                  {filteredProducts.map((product) => (
+                  {products.map((product) => (
                     <li
                       key={product.id}
                       role="option"
