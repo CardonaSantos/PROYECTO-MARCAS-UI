@@ -1075,12 +1075,12 @@ export default function MakeSale() {
                   <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg text-sm">
                     <p className="font-semibold flex items-center gap-2 text-gray-800 dark:text-gray-200">
                       <CreditCard className="w-4 h-4" />
-                      Total: Q{calculateTotal().toFixed(2)}
+                      Total: {formatearMoneda(calculateTotal())}
                     </p>
                     <p className="font-semibold flex items-center gap-2 text-green-600 dark:text-green-400">
                       <Percent className="w-4 h-4" />
-                      Total con descuento: Q
-                      {calculateTotalConDescuento().toFixed(2)}
+                      Total con descuento:{" "}
+                      {formatearMoneda(calculateTotalConDescuento())}
                     </p>
                     <p className="text-gray-500 dark:text-gray-400 flex items-center gap-2">
                       <Percent className="w-4 h-4" />
