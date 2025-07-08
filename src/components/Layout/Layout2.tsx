@@ -29,7 +29,7 @@ import {
 
 const API_URL = import.meta.env.VITE_API_URL;
 
-import logo from "../../assets/images/logoEmpresa.png";
+import logo from "../../assets/images/caballeros negro.png";
 import { jwtDecode } from "jwt-decode";
 import { useSocket } from "../../Context/SocketProvider ";
 import axios from "axios";
@@ -39,8 +39,7 @@ import { SidebarProvider, SidebarTrigger } from "../ui/sidebar";
 import { useStore } from "@/Context/ContextSucursal";
 import { Separator } from "@radix-ui/react-select";
 import message1 from "../../assets/Sounds/message1.mp3";
-import logoEmpresa from "../../assets/images/logoEmpresa.png";
-import { useNotifications } from "@/Context/ContextNotifications";
+import logoEmpresa from "../../assets/images/caballeros.png";
 
 interface LayoutProps {
   children?: React.ReactNode;
@@ -79,13 +78,11 @@ export default function Layout2({ children }: LayoutProps) {
   const setUserId = useStore((state) => state.setUserId);
   const setEmpresaId = useStore((state) => state.setSucursalId);
 
-  // Manejo de cierre de sesión
   const handleLogout = () => {
     localStorage.removeItem("authToken");
-    window.location.href = "/login"; // O redirecciona al login
+    window.location.href = "/login";
   };
 
-  // Decodificar token y guardar datos del usuario
   useEffect(() => {
     const token = localStorage.getItem("authToken");
     if (token) {
@@ -102,38 +99,6 @@ export default function Layout2({ children }: LayoutProps) {
       }
     }
   }, []);
-
-  // Función para enviar ubicación del usuario
-  // const sendMyLocation = async () => {
-  //   if (!navigator.geolocation) {
-  //     console.error("Geolocation no está disponible en este navegador.");
-  //     toast.info("Geolocation no está disponible en este navegador.");
-  //     return;
-  //   }
-
-  //   navigator.geolocation.getCurrentPosition((position) => {
-  //     if (socket && userId) {
-  //       const locationData = {
-  //         latitud: position.coords.latitude,
-  //         longitud: position.coords.longitude,
-  //         usuarioId: userId,
-  //       };
-  //       // console.log("Enviando ubicación:", locationData);
-  //       socket.emit("sendLocation", locationData);
-  //     }
-  //   });
-  // };
-
-  // Enviar ubicación cada 5 segundos si el usuario es vendedor
-  // useEffect(() => {
-  //   if (socket && userRol === "VENDEDOR") {
-  //     const interval = setInterval(() => {
-  //       sendMyLocation();
-  //     }, 3000);
-
-  //     return () => clearInterval(interval); // Limpia correctamente el intervalo
-  //   }
-  // }, [socket, userId]);
 
   useEffect(() => {
     if (!navigator.geolocation || !socket || userRol !== "VENDEDOR") return;
@@ -154,7 +119,6 @@ export default function Layout2({ children }: LayoutProps) {
     return () => navigator.geolocation.clearWatch(watchId);
   }, [socket, userId]);
 
-  // Obtener notificaciones desde el backend
   const getNoti = async () => {
     if (tokenUser) {
       try {
@@ -170,7 +134,6 @@ export default function Layout2({ children }: LayoutProps) {
     }
   };
 
-  // Cargar notificaciones al iniciar sesión
   useEffect(() => {
     getNoti();
   }, [tokenUser]);
@@ -209,101 +172,7 @@ export default function Layout2({ children }: LayoutProps) {
     return () => {
       socket.off("newNotification", handleAdminNotification);
     };
-  }, [socket, userId]); // Agregado userId para que se actualice correctamente
-
-  // En tu componente Layout2 o contexto
-  // useEffect(() => {
-  //   if (!socket) return;
-
-  //   const handleSellerNotification = (newNotification: Notification) => {
-  //     setNotifications((prev) => [...prev, newNotification]);
-
-  //     if (Notification.permission !== "granted") {
-  //       Notification.requestPermission();
-  //     }
-
-  //     if (Notification.permission === "granted") {
-  //       new Notification("Nueva Notificación", {
-  //         body: newNotification.mensaje,
-  //         icon: logoEmpresa,
-  //         badge: logoEmpresa,
-  //       });
-  //     }
-
-  //     const audioNotificacion = new Audio(message1);
-  //     audioNotificacion.play();
-  //   };
-
-  //   socket.on("newNotificationToSeller", handleSellerNotification);
-
-  //   return () => {
-  //     socket.off("newNotificationToSeller", handleSellerNotification);
-  //   };
-  // }, [socket]);
-
-  // Escuchar nuevas notificaciones para vendedores
-  // useEffect(() => {
-  //   if (!socket) return;
-
-  //   const handleNewNotification = (newNotification: Notification) => {
-  //     console.log(
-  //       "La notificación entrante para vendedor es:",
-  //       newNotification
-  //     );
-  //     setNotifications((prev) => [...prev, newNotification]);
-  //   };
-
-  //   socket.on("newNotificationToSeller", handleNewNotification);
-
-  //   return () => {
-  //     socket.off("newNotificationToSeller", handleNewNotification);
-  //   };
-  // }, [socket, tokenUser]);
-
-  // useEffect(() => {
-  //   if (!socket || !userId) return;
-
-  //   const handleConnect = () => {
-  //     console.log("Re-registrando usuario:", userId, "Socket ID:", socket.id);
-  //     socket.emit("registerUser", Number(userId)); // Forzar re-registro
-  //   };
-
-  //   const handleNotification = (newNotification: Notification) => {
-  //     console.log(
-  //       "La notificación entrante para vendedor es:",
-  //       newNotification
-  //     );
-  //     setNotifications((prev) => [...prev, newNotification]);
-
-  //     if (Notification.permission !== "granted") {
-  //       Notification.requestPermission();
-  //     }
-
-  //     if (Notification.permission === "granted") {
-  //       new Notification("Nueva Notificación", {
-  //         body: newNotification.mensaje,
-  //         icon: logoEmpresa,
-  //         badge: logoEmpresa,
-  //       });
-  //     }
-
-  //     const audioNotificacion = new Audio(message1);
-  //     audioNotificacion.play();
-  //   };
-
-  //   // Escuchar eventos (¡incluyendo reconexiones!)
-  //   socket.on("connect", handleConnect);
-  //   socket.on("newNotificationToSeller", handleNotification);
-
-  //   // Registrar inmediatamente si ya está conectado
-  //   if (socket.connected) handleConnect();
-
-  //   // Limpiar listeners al desmontar o cambiar userId/socket
-  //   return () => {
-  //     socket.off("connect", handleConnect);
-  //     socket.off("newNotificationToSeller", handleNotification);
-  //   };
-  // }, [socket, userId]); // ¡Dependencias críticas aquí!
+  }, [socket, userId]);
 
   const handleVisto = async (notificationId: number) => {
     try {
@@ -323,7 +192,6 @@ export default function Layout2({ children }: LayoutProps) {
     }
   };
 
-  // Eliminar todas las notificaciones
   const handleDeleteAllNotifications = async () => {
     try {
       const response = await axios.get(
@@ -339,10 +207,15 @@ export default function Layout2({ children }: LayoutProps) {
     }
   };
 
-  // console.log("Mis notificaciones:", notifications);
-  console.log("MI ACTUAL ID SOCKET ES: ", socket?.id);
-  const notifications2 = useNotifications((state) => state.notifications);
-  console.log("LAS NOTIFICACIONES DEL CONTEXTO SON: ", notifications2);
+  const origin = window.location.origin;
+
+  const isMarcas = origin === import.meta.env.VITE_MARCAS_URL;
+
+  const switchLink = isMarcas
+    ? `${import.meta.env.VITE_POS_URL}/dashboard`
+    : `${import.meta.env.VITE_MARCAS_URL}/marcas-gt/dashboard`;
+
+  const switchLabel = isMarcas ? "CABALLEROS BOUTIQUE" : "MARCAS GT";
 
   return (
     <div className="flex min-h-screen">
@@ -357,17 +230,20 @@ export default function Layout2({ children }: LayoutProps) {
               {/* Sección izquierda: Logo y nombre de la sucursal */}
               <div className="flex items-center space-x-2">
                 <Link to={"/"}>
-                  <img className="h-16 w-28" src={logo} alt="Logo" />
-                </Link>
-                <Link to={"/"}>
-                  <h2 className="text-lg font-semibold text-foreground">
-                    Marcas Guatemala
-                  </h2>
+                  <img className="h-12 min-w-24" src={logo} alt="Logo" />
                 </Link>
               </div>
 
               {/* Sección derecha: Toggle de modo, notificaciones y menú de usuario */}
               <div className="flex items-center space-x-3">
+                <Button
+                  asChild
+                  variant={"link"}
+                  className="font-semibold underline"
+                >
+                  <Link to={switchLink}>{switchLabel}</Link>
+                </Button>
+
                 <ModeToggle />
 
                 {tokenUser && (
