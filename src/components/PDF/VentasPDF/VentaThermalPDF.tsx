@@ -12,10 +12,6 @@ import "dayjs/locale/es"; // Importa el idioma español
 import localizedFormat from "dayjs/plugin/localizedFormat";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 
-// Asegúrate de que la ruta del logo sea correcta en tu proyecto
-// Para este ejemplo, usaremos un placeholder si no se proporciona.
-// import logo from "../../../assets/images/logoEmpresa.png";
-
 dayjs.extend(localizedFormat);
 dayjs.extend(customParseFormat);
 dayjs.locale("es");
@@ -66,124 +62,159 @@ export interface VentaTypePDF {
   }[];
 }
 
-interface VentaProps {
+interface VentaThermalProps {
   venta: VentaTypePDF | undefined;
   empresa: Empresa | undefined;
-  logoSrc?: string; // Añadir prop para el logo
+  logoSrc?: string; // Prop para el logo
 }
 
-const VentaPDF: React.FC<VentaProps> = ({ venta, empresa, logoSrc }) => {
+// NOTA IMPORTANTE: Para la mejor nitidez del logo en impresoras térmicas,
+const VentaThermalPDF: React.FC<VentaThermalProps> = ({
+  venta,
+  empresa,
+  logoSrc,
+}) => {
+  // Ancho de 80mm en puntos (1 pulgada = 72 puntos, 80mm = 3.1496 pulgadas)
+  const THERMAL_WIDTH_POINTS = (80 / 25.4) * 72;
+
   const styles = StyleSheet.create({
     page: {
       fontFamily: "Helvetica",
-      fontSize: 10,
-      padding: 30,
+      fontSize: 8, // Reducir tamaño de fuente general
+      padding: 10, // Reducir padding para maximizar el área de impresión
       flexDirection: "column",
       backgroundColor: "#FFFFFF",
+      width: THERMAL_WIDTH_POINTS, // Establecer ancho fijo
     },
     header: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginBottom: 20,
-      borderBottom: "2 solid #4F46E5",
-      paddingBottom: 15,
+      flexDirection: "column", // Apilar elementos verticalmente
+      alignItems: "center", // Centrar elementos
+      marginBottom: 10,
+      borderBottom: "1.5 solid #000000", // Borde simple para impresoras térmicas
+      paddingBottom: 5,
     },
     logo: {
-      width: 80,
-      height: 53,
+      width: 60,
+      height: 40,
+      marginBottom: 5,
     },
     companyInfo: {
       flexDirection: "column",
-      alignItems: "flex-end",
+      alignItems: "center", // Centrar información de la empresa
     },
     companyName: {
-      fontSize: 18,
+      fontSize: 8,
       fontWeight: "bold",
-      color: "#4F46E5",
-      marginBottom: 5,
-    },
-    companyDetails: {
-      fontSize: 9,
-      color: "#4B5563",
+      color: "#000000",
       marginBottom: 2,
     },
+    companyDetails: {
+      fontSize: 7,
+      color: "#000000",
+      marginBottom: 1,
+      textAlign: "center",
+    },
     invoiceTitle: {
-      fontSize: 16,
+      fontSize: 8,
       fontWeight: "bold",
-      marginBottom: 15,
-      color: "#4F46E5",
+      marginBottom: 10,
+      color: "#000000",
       alignSelf: "center",
       textTransform: "uppercase",
-      letterSpacing: 1,
+      letterSpacing: 0.5,
     },
     customerInfo: {
-      flexDirection: "row",
-      justifyContent: "space-between",
-      marginBottom: 20,
-      backgroundColor: "#F3F4F6",
-      padding: 15,
-      borderRadius: 5,
-      borderLeft: "4 solid #4F46E5",
+      flexDirection: "column", // Apilar información del cliente
+      marginBottom: 10,
+      padding: 5,
+      border: "1 solid #E5E7EB", // Borde simple
+      borderRadius: 3,
     },
     infoColumn: {
       flexDirection: "column",
-      width: "48%",
+      width: "100%",
+      marginBottom: 5,
     },
     label: {
-      fontSize: 10,
+      fontSize: 8,
       fontWeight: "bold",
-      marginBottom: 4,
-      color: "#4F46E5",
+      marginBottom: 2,
+      color: "#000000",
     },
     value: {
-      fontSize: 10,
-      marginBottom: 6,
-      color: "#1F2937",
+      fontSize: 8,
+      marginBottom: 2,
+      color: "#000000",
+    },
+    invoiceNumber: {
+      fontSize: 9,
+      fontWeight: "bold",
+      color: "#000000",
+      textAlign: "center",
+      marginBottom: 2,
+    },
+    invoiceDate: {
+      fontSize: 8,
+      color: "#000000",
+      textAlign: "center",
+      marginBottom: 2,
+    },
+    paymentMethod: {
+      fontSize: 8,
+      color: "#000000",
+      padding: 2,
+      backgroundColor: "#F3F4F6", // Fondo claro
+      borderRadius: 2,
+      alignSelf: "center", // Centrar método de pago
+      marginTop: 3,
     },
     table: {
       flexDirection: "column",
-      marginBottom: 20,
-      borderWidth: 1,
-      borderColor: "#E5E7EB",
-      borderRadius: 5,
+      marginBottom: 10,
+      borderWidth: 1.5,
+      // borderWidth: 0,
+      borderColor: "#000000",
+      borderRadius: 3,
       overflow: "hidden",
     },
     tableHeader: {
       flexDirection: "row",
-      borderBottomWidth: 1,
-      borderBottomColor: "#4F46E5",
+      borderBottomWidth: 1.5,
+      borderBottomColor: "#000000",
       alignItems: "center",
-      height: 32,
-      backgroundColor: "#4F46E5",
+      height: 20, // Altura de fila más pequeña
+      backgroundColor: "#E5E7EB", // Fondo claro para encabezado
     },
     tableHeaderCell: {
-      color: "#FFFFFF",
+      color: "#000000",
       fontWeight: "bold",
-      padding: 8,
+      padding: 4,
+      fontSize: 7,
     },
     tableRow: {
       flexDirection: "row",
-      borderBottomWidth: 1,
-      borderBottomColor: "#E5E7EB",
+      borderBottomWidth: 0.5,
+      borderBottomColor: "#000000",
       alignItems: "center",
-      minHeight: 30,
+      minHeight: 18,
     },
     tableRowEven: {
       backgroundColor: "#F9FAFB",
     },
     tableCell: {
-      padding: 8,
-      color: "#4B5563",
+      padding: 4,
+      color: "#000000",
+      fontSize: 7,
     },
     description: {
-      width: "40%",
+      width: "45%",
     },
     price: {
       width: "20%",
       textAlign: "right",
     },
     quantity: {
-      width: "20%",
+      width: "15%",
       textAlign: "center",
     },
     amount: {
@@ -192,45 +223,46 @@ const VentaPDF: React.FC<VentaProps> = ({ venta, empresa, logoSrc }) => {
     },
     footer: {
       flexDirection: "column",
-      marginTop: 20,
-      borderTop: "2 solid #E5E7EB",
-      paddingTop: 15,
+      marginTop: 10,
+      // borderTop: "1.5 solid #000000",
+      paddingTop: 5,
+      // borderTop: "0 solid #000000", // Cambia de "1.5 solid #000000" a "0 solid #000000" o "none"
     },
     footerRow: {
       flexDirection: "row",
       justifyContent: "flex-end",
-      marginBottom: 5,
+      marginBottom: 3,
     },
     footerLabel: {
-      fontSize: 10,
+      fontSize: 8,
       fontWeight: "bold",
-      width: "20%",
+      width: "40%", // Ajustar ancho para etiquetas de pie de página
       textAlign: "right",
-      marginRight: 10,
-      color: "#4B5563",
+      marginRight: 5,
+      color: "#000000",
     },
     footerValue: {
-      fontSize: 10,
-      width: "20%",
+      fontSize: 8,
+      width: "40%",
       textAlign: "right",
-      color: "#4B5563",
+      color: "#000000",
     },
     discountRow: {
       flexDirection: "row",
       justifyContent: "flex-end",
-      marginBottom: 10,
+      marginBottom: 5,
     },
     discountLabel: {
-      fontSize: 8,
-      width: "20%",
+      fontSize: 7,
+      width: "40%",
       textAlign: "right",
-      marginRight: 10,
+      marginRight: 5,
       color: "#6B7280",
       fontStyle: "italic",
     },
     discountValue: {
-      fontSize: 8,
-      width: "20%",
+      fontSize: 7,
+      width: "40%",
       textAlign: "right",
       color: "#6B7280",
       fontStyle: "italic",
@@ -239,55 +271,37 @@ const VentaPDF: React.FC<VentaProps> = ({ venta, empresa, logoSrc }) => {
       flexDirection: "row",
       justifyContent: "flex-end",
       marginTop: 5,
-      paddingTop: 8,
-      borderTop: "1 solid #E5E7EB",
+      paddingTop: 5,
+      borderTop: "1 solid #000000",
     },
     totalLabel: {
-      fontSize: 14,
+      fontSize: 11,
       fontWeight: "bold",
-      width: "20%",
+      width: "40%",
       textAlign: "right",
-      marginRight: 10,
-      color: "#4F46E5",
+      marginRight: 5,
+      color: "#000000",
     },
     totalValue: {
-      fontSize: 14,
+      fontSize: 11,
       fontWeight: "bold",
-      width: "20%",
+      width: "40%",
       textAlign: "right",
-      color: "#4F46E5",
+      color: "#000000",
     },
     thankYou: {
-      marginTop: 30,
-      fontSize: 11,
+      marginTop: 15,
+      fontSize: 9,
       color: "#6B7280",
       textAlign: "center",
       fontStyle: "italic",
-    },
-    invoiceNumber: {
-      fontSize: 11,
-      fontWeight: "bold",
-      color: "#4F46E5",
-    },
-    invoiceDate: {
-      fontSize: 10,
-      color: "#4B5563",
-    },
-    paymentMethod: {
-      fontSize: 10,
-      color: "#4B5563",
-      padding: 4,
-      backgroundColor: "#EEF2FF",
-      borderRadius: 3,
-      alignSelf: "flex-start",
-      marginTop: 5,
     },
   });
 
   if (!venta || !empresa) {
     return (
       <Document>
-        <Page size="A4" style={styles.page}>
+        <Page size={[THERMAL_WIDTH_POINTS, "auto"]} style={styles.page}>
           <Text>No hay datos de la venta o de la empresa disponibles.</Text>
         </Page>
       </Document>
@@ -296,8 +310,9 @@ const VentaPDF: React.FC<VentaProps> = ({ venta, empresa, logoSrc }) => {
 
   const Header = () => (
     <View style={styles.header}>
-      {/* Usa logoSrc si está disponible, de lo contrario, un placeholder */}
-      <Image style={styles.logo} src={logoSrc || "/placeholder.svg"} />
+      {logoSrc && (
+        <Image style={styles.logo} src={logoSrc || "/placeholder.svg"} />
+      )}
       <View style={styles.companyInfo}>
         <Text style={styles.companyName}>{empresa.nombre}</Text>
         <Text style={styles.companyDetails}>{empresa.direccion}</Text>
@@ -315,17 +330,14 @@ const VentaPDF: React.FC<VentaProps> = ({ venta, empresa, logoSrc }) => {
   const CustomerInfo = () => (
     <View style={styles.customerInfo}>
       <View style={styles.infoColumn}>
-        <Text style={styles.label}>Cliente:</Text>
-        <Text style={styles.value}>
+        <Text style={styles.label}>
+          Cliente:{" "}
           {venta.cliente.apellido
             ? venta.cliente.nombre + " " + venta.cliente.apellido
             : venta.cliente.nombre}
         </Text>
-        <Text style={styles.value}>Tel: {venta.cliente.telefono}</Text>
-        <Text style={styles.value}>Dirección: {venta.cliente.direccion}</Text>
       </View>
       <View style={styles.infoColumn}>
-        <Text style={styles.invoiceNumber}>Factura #0{venta.id}</Text>
         <Text style={styles.invoiceDate}>
           Fecha: {formatearFecha(venta.timestamp)}
         </Text>
@@ -340,8 +352,8 @@ const VentaPDF: React.FC<VentaProps> = ({ venta, empresa, logoSrc }) => {
         <Text style={[styles.tableHeaderCell, styles.description]}>
           Producto
         </Text>
+        <Text style={[styles.tableHeaderCell, styles.quantity]}>Cant.</Text>
         <Text style={[styles.tableHeaderCell, styles.price]}>Precio</Text>
-        <Text style={[styles.tableHeaderCell, styles.quantity]}>Cantidad</Text>
         <Text style={[styles.tableHeaderCell, styles.amount]}>Total</Text>
       </View>
       {venta.productos.map((producto, index) => (
@@ -352,14 +364,14 @@ const VentaPDF: React.FC<VentaProps> = ({ venta, empresa, logoSrc }) => {
           <Text style={[styles.tableCell, styles.description]}>
             {producto.producto.nombre}
           </Text>
+          <Text style={[styles.tableCell, styles.quantity]}>
+            {producto.cantidad}
+          </Text>
           <Text style={[styles.tableCell, styles.price]}>
             {new Intl.NumberFormat("es-GT", {
               style: "currency",
               currency: "GTQ",
             }).format(producto.precio)}
-          </Text>
-          <Text style={[styles.tableCell, styles.quantity]}>
-            {producto.cantidad}
           </Text>
           <Text style={[styles.tableCell, styles.amount]}>
             {new Intl.NumberFormat("es-GT", {
@@ -405,9 +417,9 @@ const VentaPDF: React.FC<VentaProps> = ({ venta, empresa, logoSrc }) => {
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
+      <Page size={[THERMAL_WIDTH_POINTS, "auto"]} style={styles.page}>
         <Header />
-        <Text style={styles.invoiceTitle}>Factura de Venta</Text>
+        <Text style={styles.invoiceTitle}>Factura de Venta #{venta.id}</Text>
         <CustomerInfo />
         <ProductTable />
         <Footer />
@@ -416,4 +428,4 @@ const VentaPDF: React.FC<VentaProps> = ({ venta, empresa, logoSrc }) => {
   );
 };
 
-export default VentaPDF;
+export default VentaThermalPDF;
