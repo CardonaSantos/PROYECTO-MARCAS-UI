@@ -58,6 +58,7 @@ export interface VentaTypePDF {
       id: number;
       nombre: string;
       descripcion: string;
+      codigoProducto: string;
     };
   }[];
 }
@@ -292,10 +293,15 @@ const VentaThermalPDF: React.FC<VentaThermalProps> = ({
     thankYou: {
       marginTop: 15,
       fontSize: 9,
-      color: "#6B7280",
+      color: "#000000",
       textAlign: "center",
       fontStyle: "italic",
-    },
+    }, //NUEVOS
+    colDesc: { width: "42%" }, // nombre
+    colCode: { width: "18%", textAlign: "center" },
+    colQty: { width: "10%", textAlign: "center" },
+    colPrice: { width: "15%", textAlign: "right" },
+    colTotal: { width: "15%", textAlign: "right" },
   });
 
   if (!venta || !empresa) {
@@ -352,9 +358,12 @@ const VentaThermalPDF: React.FC<VentaThermalProps> = ({
         <Text style={[styles.tableHeaderCell, styles.description]}>
           Producto
         </Text>
+
+        <Text style={[styles.tableHeaderCell, styles.colCode]}>Código</Text>
+
         <Text style={[styles.tableHeaderCell, styles.quantity]}>Cant.</Text>
         <Text style={[styles.tableHeaderCell, styles.price]}>Precio</Text>
-        <Text style={[styles.tableHeaderCell, styles.amount]}>Total</Text>
+        <Text style={[styles.tableHeaderCell, styles.amount]}>Subtotal</Text>
       </View>
       {venta.productos.map((producto, index) => (
         <View
@@ -364,6 +373,11 @@ const VentaThermalPDF: React.FC<VentaThermalProps> = ({
           <Text style={[styles.tableCell, styles.description]}>
             {producto.producto.nombre}
           </Text>
+
+          <Text style={[styles.tableCell, styles.colCode]}>
+            {producto.producto.codigoProducto}
+          </Text>
+
           <Text style={[styles.tableCell, styles.quantity]}>
             {producto.cantidad}
           </Text>
@@ -373,6 +387,7 @@ const VentaThermalPDF: React.FC<VentaThermalProps> = ({
               currency: "GTQ",
             }).format(producto.precio)}
           </Text>
+
           <Text style={[styles.tableCell, styles.amount]}>
             {new Intl.NumberFormat("es-GT", {
               style: "currency",

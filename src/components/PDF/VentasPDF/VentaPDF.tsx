@@ -62,6 +62,7 @@ export interface VentaTypePDF {
       id: number;
       nombre: string;
       descripcion: string;
+      codigoProducto: string;
     };
   }[];
 }
@@ -281,7 +282,12 @@ const VentaPDF: React.FC<VentaProps> = ({ venta, empresa, logoSrc }) => {
       borderRadius: 3,
       alignSelf: "flex-start",
       marginTop: 5,
-    },
+    }, //NUEVOS
+    colDesc: { width: "43%" }, // nombres suelen ser largos
+    colCode: { width: "12%", textAlign: "center" },
+    colPrice: { width: "15%", textAlign: "right" },
+    colQty: { width: "15%", textAlign: "center" },
+    colTotal: { width: "15%", textAlign: "right" },
   });
 
   if (!venta || !empresa) {
@@ -340,9 +346,11 @@ const VentaPDF: React.FC<VentaProps> = ({ venta, empresa, logoSrc }) => {
         <Text style={[styles.tableHeaderCell, styles.description]}>
           Producto
         </Text>
+        <Text style={[styles.tableHeaderCell, styles.colCode]}>Código</Text>
         <Text style={[styles.tableHeaderCell, styles.price]}>Precio</Text>
+
         <Text style={[styles.tableHeaderCell, styles.quantity]}>Cantidad</Text>
-        <Text style={[styles.tableHeaderCell, styles.amount]}>Total</Text>
+        <Text style={[styles.tableHeaderCell, styles.amount]}>Subtotal</Text>
       </View>
       {venta.productos.map((producto, index) => (
         <View
@@ -352,6 +360,11 @@ const VentaPDF: React.FC<VentaProps> = ({ venta, empresa, logoSrc }) => {
           <Text style={[styles.tableCell, styles.description]}>
             {producto.producto.nombre}
           </Text>
+
+          <Text style={[styles.tableCell, styles.colCode]}>
+            {producto.producto.codigoProducto}
+          </Text>
+
           <Text style={[styles.tableCell, styles.price]}>
             {new Intl.NumberFormat("es-GT", {
               style: "currency",

@@ -28,7 +28,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
 // import { useTheme } from "next-themes";
 import {
-  AlertCircle,
   AlertTriangle,
   Calendar,
   Check,
@@ -74,6 +73,7 @@ import {
 } from "@/components/ui/carousel";
 import { Separator } from "@/components/ui/separator";
 import placeholder from "@/assets/images/placeholder.jpg";
+import { Label } from "@/components/ui/label";
 dayjs.extend(localizedFormat);
 dayjs.extend(customParseFormat);
 dayjs.locale("es");
@@ -171,28 +171,21 @@ interface Visita2 {
   usuarioId: number;
   ventaId: number | null;
 }
-
 type SaleData = {
-  // Campos para ventas normales (obligatorios)
+  // Base de la venta
   monto: number;
   montoConDescuento: number;
-  metodoPago: string;
+  metodoPago: "CONTADO" | "TARJETA" | "TRANSFERENCIA_BANCO" | "CREDITO";
   empresaId: number;
   descuento?: number;
   clienteId?: number;
   vendedorId?: number;
-  productos: {
-    productoId: number;
-    cantidad: number;
-    precio: number;
-  }[];
+  productos: { productoId: number; cantidad: number; precio: number }[];
 
-  // Campos opcionales (solo necesarios si es CREDITO)
-  creditoInicial?: number;
-  numeroCuotas?: number;
-  interes?: number;
+  // Solo para CREDITO (opcionales)
   comentario?: string;
-  diasEntrePagos?: number;
+  fechaInicio?: string; // 'YYYY-MM-DD' (opcional; hoy no lo usa el service)
+  fechaFin?: string; // 'YYYY-MM-DD' (opcional; hoy no lo usa el service)
 };
 
 type Venta = {
@@ -209,23 +202,18 @@ type Venta = {
 };
 // Tipos para el estado de la información del crédito
 type CreditoInfo = {
-  creditoInicial: number | null;
-  numeroCuotas: number | null;
-  interes: number | null;
   comentario: string | null;
-  diasEntrePagos: number | null;
+  fechaInicio: string | null;
+  fechaFin: string | null;
 };
 
-interface SummaryItemProps {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
+interface ProductImageCarouselProps {
+  images: { url: string }[];
+  productName: string;
 }
 
 export default function MakeSale() {
-  // Este hook debe ir al inicio del componente
   const [cantidades, setCantidades] = useState<Record<number, number>>({});
-  // Agrega esto al inicio del componente si no está ya
   const [cantidadSeleccionada, setCantidadSeleccionada] = useState(1);
 
   const handleCantidadChange = (id: number, value: number) => {
@@ -432,15 +420,11 @@ export default function MakeSale() {
   const formatoCartData = (
     cart: (Producto & { quantity: number })[]
   ): SaleData => {
-    // Construimos los campos base
-    const baseData: SaleData = {
-      monto: cart.reduce(
-        (total, item) => total + item.precio * item.quantity,
-        0
-      ),
+    const base: SaleData = {
+      monto: calculateTotal(),
       montoConDescuento: calculateTotalConDescuento(),
-      metodoPago: selectedMetodPago,
-      empresaId: empresaId,
+      metodoPago: selectedMetodPago as SaleData["metodoPago"],
+      empresaId,
       descuento: selectedDiscount?.porcentaje,
       clienteId: selectedCustomer?.id,
       vendedorId: userId,
@@ -451,16 +435,17 @@ export default function MakeSale() {
       })),
     };
 
-    // Si es crédito, añadimos los campos de crédito
     if (selectedMetodPago === "CREDITO") {
-      baseData.creditoInicial = creditoInfo.creditoInicial || 0;
-      baseData.numeroCuotas = creditoInfo.numeroCuotas || 0;
-      baseData.interes = creditoInfo.interes || 0;
-      baseData.comentario = creditoInfo.comentario || undefined;
-      baseData.diasEntrePagos = creditoInfo.diasEntrePagos || undefined;
+      return {
+        ...base,
+        comentario: creditoInfo.comentario ?? undefined,
+        // Estas dos son opcionales; tu service actual no las lee:
+        fechaInicio: creditoInfo.fechaInicio ?? undefined,
+        fechaFin: creditoInfo.fechaFin ?? undefined,
+      };
     }
 
-    return baseData;
+    return base;
   };
 
   const clearCart = () => {
@@ -484,29 +469,29 @@ export default function MakeSale() {
 
   const sendCartData = async (cart: (Producto & { quantity: number })[]) => {
     const formateado: SaleData = formatoCartData(cart);
+
+    // ✅ Validaciones mínimas comunes
     if (
       !formateado.clienteId ||
-      typeof formateado.monto === "undefined" ||
-      !formateado.productos ||
       !formateado.vendedorId ||
-      !formateado.montoConDescuento ||
-      !formateado.metodoPago
+      !formateado.empresaId ||
+      !formateado.metodoPago ||
+      typeof formateado.monto !== "number" ||
+      typeof formateado.montoConDescuento !== "number" ||
+      !formateado.productos?.length
     ) {
       toast.info("Faltan campos sin llenar");
       return;
     }
 
-    // Validaciones adicionales si es CREDITO
+    // ✅ Reglas específicas para CREDITO (fechas opcionales coherentes)
     if (formateado.metodoPago === "CREDITO") {
       if (
-        !formateado.numeroCuotas ||
-        formateado.numeroCuotas <= 0 ||
-        !formateado.interes ||
-        !formateado.diasEntrePagos ||
-        formateado.diasEntrePagos < 0 ||
-        formateado.interes < 0
+        formateado.fechaInicio &&
+        formateado.fechaFin &&
+        formateado.fechaFin < formateado.fechaInicio // 'YYYY-MM-DD' compara bien
       ) {
-        toast.info("Datos de crédito inválidos. Revisa cuotas e interés.");
+        toast.info("La fecha fin no puede ser menor que la fecha inicio");
         return;
       }
     }
@@ -514,31 +499,30 @@ export default function MakeSale() {
     try {
       setIsSubmitting(true);
       const response = await axios.post(`${API_URL}/sale`, formateado);
+
       if (response.status === 200 || response.status === 201) {
         setSaleMade(response.data);
         toast.success("Venta creada");
+
+        // Limpieza de estado
         clearCart();
         setSelectedCustomer(null);
-        setIsSubmitting(false);
         setShowCartModal(false);
         setConfirmSale(false);
-        setCantidades({}); // Limpiar cantidades al finalizar la venta
+        setCantidades({});
         setCantidadSeleccionada(1);
-        // setPage(1);
-        // setItemsPerPage(1);
         setSearchTerm("");
 
         setPage(1);
         setProducts([]);
         fetchProducts(1);
 
-        setTimeout(() => {
-          setOpenDialogSaleMade(true);
-        }, 1500);
+        setTimeout(() => setOpenDialogSaleMade(true), 1500);
       }
     } catch (error) {
       console.log(error);
       toast.error("Error al crear venta");
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -589,72 +573,68 @@ export default function MakeSale() {
   ) {
     const formateado = formatoCartData(cart);
 
+    // ✅ Validaciones mínimas comunes
     if (
       !formateado.clienteId ||
-      typeof formateado.monto === "undefined" ||
-      !formateado.productos ||
       !formateado.vendedorId ||
-      !formateado.montoConDescuento ||
-      !formateado.metodoPago
+      !formateado.empresaId ||
+      !formateado.metodoPago ||
+      typeof formateado.monto === "undefined" ||
+      typeof formateado.montoConDescuento === "undefined" ||
+      !formateado.productos?.length
     ) {
       toast.info("Faltan campos sin llenar");
       return;
     }
 
+    // ✅ Reglas específicas para CREDITO (solo cliente y fechas opcionales coherentes)
     if (formateado.metodoPago === "CREDITO") {
+      // si mandas fechas desde el front, valida coherencia
       if (
-        !formateado.numeroCuotas ||
-        formateado.numeroCuotas <= 0 ||
-        !formateado.interes ||
-        formateado.interes < 0 ||
-        !formateado.diasEntrePagos ||
-        formateado.diasEntrePagos < 0 ||
-        !formateado.creditoInicial ||
-        formateado.creditoInicial < 0
+        formateado.fechaInicio &&
+        formateado.fechaFin &&
+        formateado.fechaFin < formateado.fechaInicio // 'YYYY-MM-DD' compara bien
       ) {
-        toast.info(
-          "Datos de crédito inválidos. Revisa cuotas, interés, días entre pagos y crédito inicial."
-        );
+        toast.info("La fecha fin no puede ser menor que la fecha inicio");
         return;
       }
     }
 
     try {
       setIsSubmitting(true);
-      const response = await axios.post(`${API_URL}/sale/sale-for-regis`, {
+
+      const payload = {
         ...formateado,
         registroVisitaId: registroAbierto?.id,
         visita: true,
-      });
+      };
 
-      if (response.status === 201) {
+      const response = await axios.post(
+        `${API_URL}/sale/sale-for-regis`,
+        payload
+      );
+
+      if (response.status === 200 || response.status === 201) {
         setSaleMade(response.data);
         toast.success("Venta creada");
 
         // Limpiar estado
         clearCart();
-        setIsSubmitting(false);
         setShowCartModal(false);
         setConfirmSale(false);
         setCantidades({});
         setCantidadSeleccionada(1);
-
-        // Refrescar productos y reiniciar paginación
-        // fetchProducts(1);
-        // setPage(1);
-        // setItemsPerPage(1);
         setPage(1);
         setProducts([]);
-        fetchProducts(1); // ✅
+        fetchProducts(1);
         setSearchTerm("");
 
-        setTimeout(() => {
-          setOpenDialogSaleMade(true);
-        }, 1500);
+        setTimeout(() => setOpenDialogSaleMade(true), 1500);
       }
     } catch (error) {
       console.log(error);
       toast.error("Error al crear venta");
+    } finally {
       setIsSubmitting(false);
     }
   }
@@ -700,72 +680,25 @@ export default function MakeSale() {
   }));
 
   const [creditoInfo, setCreditoInfo] = useState<CreditoInfo>({
-    creditoInicial: null,
-    interes: null,
-    numeroCuotas: null,
     comentario: null,
-    diasEntrePagos: null,
+    fechaInicio: dayjs().format("YYYY-MM-DD"),
+    fechaFin: dayjs().add(1, "month").format("YYYY-MM-DD"), // o .add(30, 'day')
   });
 
-  const [montoTotal, setMontoTotal] = useState<number>(
-    formatoCartData(cart).montoConDescuento // Suponiendo que formatoCartData retorna el monto con descuento
-  );
-
-  // Cálculo directo, sin useMemo
-  const { interes, creditoInicial, numeroCuotas } = creditoInfo;
-  let saldoRestante = 0;
-  let montoInteres = 0;
-  let montoTotalConInteres = 0;
-  let pagoPorCuota = 0;
-
-  if (montoTotal && numeroCuotas && interes) {
-    montoInteres = montoTotal * (interes / 100);
-    montoTotalConInteres = montoTotal + montoInteres;
-    saldoRestante = montoTotalConInteres - (creditoInicial || 0);
-    pagoPorCuota = saldoRestante > 0 ? saldoRestante / numeroCuotas : 0;
-  }
+  console.log("El credito info es: ", creditoInfo);
 
   useEffect(() => {
-    setMontoTotal(formatoCartData(cart).montoConDescuento);
-  }, [cart, selectedDiscount]);
+    if (!creditoInfo.fechaInicio) return;
+    const nuevaFin = dayjs(creditoInfo.fechaInicio)
+      .add(1, "month")
+      .format("YYYY-MM-DD");
 
-  const fechasDePago = [];
-  let hoyFecha = dayjs();
-
-  if (creditoInfo.diasEntrePagos && creditoInfo.numeroCuotas) {
-    for (let indice = 0; indice < creditoInfo?.numeroCuotas; indice++) {
-      const fechaPago = hoyFecha.add(creditoInfo.diasEntrePagos, "day");
-      fechasDePago.push(fechaPago.format("D [de] MMMM [de] YYYY"));
-      hoyFecha = fechaPago;
-    }
-  }
-
-  function SummaryItem({
-    icon,
-    label,
-    value,
-  }: SummaryItemProps): React.ReactElement {
-    return (
-      <div className="flex items-center space-x-2">
-        {icon}
-        <div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
-          <p className="font-semibold">
-            {value.toLocaleString("es-GT", {
-              style: "currency",
-              currency: "GTQ",
-            })}
-          </p>
-        </div>
-      </div>
+    setCreditoInfo((prev) =>
+      prev.fechaFin === nuevaFin ? prev : { ...prev, fechaFin: nuevaFin }
     );
-  }
-  const [confirmSale, setConfirmSale] = useState(false);
+  }, [creditoInfo.fechaInicio]);
 
-  interface ProductImageCarouselProps {
-    images: { url: string }[];
-    productName: string;
-  }
+  const [confirmSale, setConfirmSale] = useState(false);
 
   function ProductImageCarousel({
     images,
@@ -807,8 +740,8 @@ export default function MakeSale() {
               </CarouselItem>
             )}
           </CarouselContent>
-          <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 scale-75 z-10 bg-white/70 shadow-md" />
-          <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 scale-75 z-10 bg-white/70 shadow-md" />
+          <CarouselPrevious className="absolute left-2 top-1/2 -translate-y-1/2 scale-75 z-10 bg-white/70 shadow-sm" />
+          <CarouselNext className="absolute right-2 top-1/2 -translate-y-1/2 scale-75 z-10 bg-white/70 shadow-sm" />
         </Carousel>
       </div>
     );
@@ -826,7 +759,7 @@ export default function MakeSale() {
     <div className="grid grid-cols-1 gap-4">
       {/* Selección de Cliente y Descuento */}
       <div className="w-full p-4 ">
-        <Card className="mb-8 shadow-xl">
+        <Card className="mb-8 shadow-sm">
           <CardContent>
             <h3 className="text-md font-semibold mb-4 pt-2">
               Selección de Cliente
@@ -903,7 +836,6 @@ export default function MakeSale() {
                     noOptionsMessage={() => "No hay descuentos disponibles"}
                     isSearchable
                     className="text-black"
-                    isDisabled={selectedMetodPago === "CREDITO"}
                   />
                 </div>
               </div>
@@ -911,7 +843,7 @@ export default function MakeSale() {
           </CardContent>
         </Card>
 
-        <Card className="mb-4 shadow-lg bg-white dark:bg-gray-800">
+        <Card className="mb-4 shadow-sm bg-white dark:bg-gray-800">
           <CardHeader>
             <CardTitle className="text-lg font-semibold flex items-center gap-2 text-gray-800 dark:text-gray-200">
               <Percent className="w-5 h-5" />
@@ -961,7 +893,7 @@ export default function MakeSale() {
 
       {/* Método de Pago y Carrito */}
       <div className="w-full p-4">
-        <Card className="mb-1 shadow-xl bg-white dark:bg-gray-800">
+        <Card className="mb-1 shadow-sm bg-white dark:bg-gray-800">
           <CardContent className="p-6">
             <h3 className="text-xl font-semibold mb-6 text-gray-800 dark:text-gray-200">
               Método de Pago
@@ -980,9 +912,7 @@ export default function MakeSale() {
                 <SelectItem value="TRANSFERENCIA_BANCO">
                   TRANSFERENCIA BANCARIA
                 </SelectItem>
-                <SelectItem disabled={!!selectedDiscount} value="CREDITO">
-                  CRÉDITO
-                </SelectItem>
+                <SelectItem value="CREDITO">CRÉDITO</SelectItem>
               </SelectContent>
             </Select>
 
@@ -1133,202 +1063,69 @@ export default function MakeSale() {
           <div className="col-span-full">
             <div className="w-full mx-auto bg-white dark:bg-gray-900 p-6 rounded-lg shadow-md">
               {/* ontenido */}
+              <h3 className="text-center text-lg font-semibold">
+                Detalles del credito
+              </h3>
+              <div className="flex items-center gap-4">
+                <Text className="w-5 h-5 text-gray-500" />
+                <div className="flex-1">
+                  <Label
+                    htmlFor="fechaInicio"
+                    className="text-sm font-medium text-gray-700 mb-1 block"
+                  >
+                    Fecha inicio
+                  </Label>
+                  <Input
+                    id="fechaInicio"
+                    type="date"
+                    value={creditoInfo.fechaInicio || ""}
+                    onChange={(e) =>
+                      setCreditoInfo((prev) => ({
+                        ...prev,
+                        fechaInicio: e.target.value,
+                      }))
+                    }
+                  />
 
-              <div className=" w-full mt-8 animate-in fade-in duration-500">
-                <h4 className="text-lg font-semibold mb-4 text-center text-primary">
-                  Información del Crédito
-                </h4>
-                <div className="space-y-6">
-                  {/* Número de Cuotas */}
-                  <div className="flex items-center gap-4">
-                    <CreditCard className="w-5 h-5 text-gray-500" />
-                    <div className="flex-1">
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">
-                        Número de Cuotas
-                      </label>
-                      <Input
-                        type="number"
-                        min="1"
-                        placeholder="Ej: 12 cuotas"
-                        value={creditoInfo.numeroCuotas || ""}
-                        onChange={(e) =>
-                          setCreditoInfo((prev) => ({
-                            ...prev,
-                            numeroCuotas: e.target.value
-                              ? parseInt(e.target.value)
-                              : null,
-                          }))
-                        }
-                        className="w-full"
-                      />
-                    </div>
-                  </div>
+                  <Label
+                    htmlFor="fechaFin"
+                    className="text-sm font-medium text-gray-700 mb-1 block"
+                  >
+                    Fecha fin
+                  </Label>
+                  <Input
+                    id="fechaFin"
+                    type="date"
+                    min={creditoInfo.fechaInicio || undefined} // opcional: no permitir fin < inicio
+                    value={creditoInfo.fechaFin || ""}
+                    onChange={(e) =>
+                      setCreditoInfo((prev) => ({
+                        ...prev,
+                        fechaFin: e.target.value,
+                      }))
+                    }
+                  />
 
-                  <div className="flex items-center gap-4">
-                    <Calendar className="w-5 h-5 text-gray-500" />
-                    <div className="flex-1">
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">
-                        Días entre pagos
-                      </label>
-                      <Input
-                        type="number"
-                        min="1"
-                        placeholder="Ej: 15 (quincenal) 30 (mensual)"
-                        value={creditoInfo.diasEntrePagos || ""}
-                        onChange={(e) =>
-                          setCreditoInfo((prev) => ({
-                            ...prev,
-                            diasEntrePagos: e.target.value
-                              ? parseInt(e.target.value)
-                              : null,
-                          }))
-                        }
-                        className="w-full"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Interés */}
-                  <div className="flex items-center gap-4">
-                    <CreditCard className="w-5 h-5 text-gray-500" />
-                    <div className="flex-1">
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">
-                        Interés (%)
-                      </label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="Ej: 10%"
-                        value={creditoInfo.interes || ""}
-                        onChange={(e) =>
-                          setCreditoInfo((prev) => ({
-                            ...prev,
-                            interes: e.target.value
-                              ? parseFloat(e.target.value)
-                              : null,
-                          }))
-                        }
-                        className="w-full"
-                      />
-                    </div>
-                  </div>
-
-                  {/* MEJORAR LA VISTA DE NOTIFICACIONES ENTRANTES EN MOVIL, VERIFICAR EL PDF, AÑADIR EL ARRAY DE IMAGENES A LOS PRODUCTOS */}
-
-                  {/* Pago Inicial */}
-                  <div className="flex items-center gap-4">
-                    <Coins className="w-5 h-5 text-gray-500" />
-                    <div className="flex-1">
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">
-                        Pago Inicial
-                      </label>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="Ej: 1000"
-                        value={creditoInfo.creditoInicial || ""}
-                        onChange={(e) =>
-                          setCreditoInfo((prev) => ({
-                            ...prev,
-                            creditoInicial: e.target.value
-                              ? parseFloat(e.target.value)
-                              : null,
-                          }))
-                        }
-                        className="w-full"
-                      />
-                    </div>
-                  </div>
-
-                  {/* COMENTARIO SOBRE EL CREDITO */}
-                  <div className="flex items-center gap-4">
-                    <Text className="w-5 h-5 text-gray-500" />
-                    <div className="flex-1">
-                      <label className="text-sm font-medium text-gray-700 mb-1 block">
-                        Comentario
-                      </label>
-                      <Textarea
-                        placeholder="Opcional"
-                        value={creditoInfo.comentario || ""}
-                        onChange={(e) =>
-                          setCreditoInfo((prev) => ({
-                            ...prev,
-                            comentario: e.target.value,
-                          }))
-                        }
-                        className="w-full"
-                      />
-                    </div>
-                  </div>
+                  <Label
+                    htmlFor="comentario"
+                    className="text-sm font-medium text-gray-700 mb-1 block"
+                  >
+                    Comentario
+                  </Label>
+                  <Textarea
+                    id="comentario"
+                    placeholder="Opcional"
+                    value={creditoInfo.comentario || ""}
+                    onChange={(e) =>
+                      setCreditoInfo((prev) => ({
+                        ...prev,
+                        comentario: e.target.value,
+                      }))
+                    }
+                    className="w-full"
+                  />
                 </div>
               </div>
-
-              {/* Resumen del Crédito */}
-              <Card className="mt-5 dark:bg-gray-800">
-                <CardHeader>
-                  <CardTitle className="text-lg font-semibold text-center text-primary">
-                    <CreditCard className="inline-block mr-2 h-6 w-6" />
-                    Resumen del Crédito
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4 md:grid md:grid-cols-2 md:gap-4 md:space-y-0">
-                    <SummaryItem
-                      icon={<CreditCard className="h-5 w-5 text-primary" />}
-                      label="Saldo Restante a Pagar"
-                      value={saldoRestante}
-                    />
-                    <SummaryItem
-                      icon={<CreditCard className="h-5 w-5 text-green-500" />}
-                      label="Monto sin interés"
-                      value={montoTotal}
-                    />
-                    <SummaryItem
-                      icon={<CreditCard className="h-5 w-5 text-yellow-500" />}
-                      label="Monto de Interés"
-                      value={montoInteres}
-                    />
-                    <SummaryItem
-                      icon={<CreditCard className="h-5 w-5 text-red-500" />}
-                      label="Monto Total con Interés"
-                      value={montoTotalConInteres}
-                    />
-                    <SummaryItem
-                      icon={<CreditCard className="h-5 w-5 text-blue-500" />}
-                      label="Pago por Cada Cuota"
-                      value={pagoPorCuota}
-                    />
-                  </div>
-
-                  <div className="mt-6">
-                    <h5 className="text-md font-semibold mb-2 flex items-center">
-                      <Calendar className="inline-block mr-2 h-5 w-5" />
-                      Fechas de Pago
-                    </h5>
-                    {fechasDePago.length <= 0 ? (
-                      <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
-                        <AlertCircle className="inline-block mr-2 h-4 w-4" />
-                        Ingrese el número de cuotas y los días entre pagos.
-                      </p>
-                    ) : (
-                      <ScrollArea className="h-[200px] rounded-md border p-4">
-                        <ul className="space-y-2">
-                          {fechasDePago.map((fecha, index) => (
-                            <li key={index} className="flex items-center">
-                              <span className="font-bold mr-2">
-                                {index + 1}:
-                              </span>
-                              <span>{fecha}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </ScrollArea>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </div>
         )}
@@ -1336,7 +1133,7 @@ export default function MakeSale() {
 
       {/* Productos Filtrados */}
       <div className="w-full p-4">
-        <Card className="mb-4 shadow-xl">
+        <Card className="mb-4 shadow-sm">
           <CardContent>
             <div className="pt-5 flex flex-col md:flex-row items-start space-y-4 md:space-y-0 md:space-x-4">
               <div className="relative flex-grow">
@@ -1384,7 +1181,7 @@ export default function MakeSale() {
 
         <ScrollArea
           ref={viewportRef} // ✅ Añade ref al contenedor de scroll
-          className="h-[calc(100vh-100px)] shadow-xl rounded-lg"
+          className="h-[calc(100vh-100px)] shadow-sm rounded-lg"
         >
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-4">
             {/* SKELETON XD */}
@@ -1496,7 +1293,7 @@ export default function MakeSale() {
                         disabled={
                           !product.stock || product.stock.cantidad === 0
                         }
-                        className={`w-full font-semibold text-white rounded-lg shadow-md ${
+                        className={`w-full font-semibold text-white rounded-lg shadow-sm ${
                           cart.some((prod) => prod.id === product.id)
                             ? "bg-red-500 hover:bg-red-600"
                             : "bg-blue-700 hover:bg-blue-800"

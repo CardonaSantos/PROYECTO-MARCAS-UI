@@ -36,7 +36,6 @@ function VentaPdfPage() {
   });
   const [printType, setPrintType] = useState<"A4" | "thermal">("A4"); // Nuevo estado para el tipo de impresión
 
-  // ✅ Detectar si es un móvil o tablet
   const isMobileDevice = () => {
     const userAgent = navigator.userAgent.toLowerCase();
     const isMobileUA =

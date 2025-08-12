@@ -1,3 +1,5 @@
+"use client";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,19 +16,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -34,25 +27,19 @@ import {
 } from "@/components/ui/table";
 import {
   AlertTriangle,
-  Banknote,
   Calendar,
   ChevronLeft,
   ChevronRight,
   Coins,
   CreditCard,
-  DeleteIcon,
   Eye,
-  FileText,
   MapPin,
-  MessageSquare,
-  Percent,
   Phone,
   Search,
   Trash2,
   User,
 } from "lucide-react";
-import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import dayjs from "dayjs";
@@ -78,97 +65,79 @@ dayjs.extend(localizedFormat);
 dayjs.locale("es");
 
 const formatearFecha = (fecha: string) => {
-  // Formateo en UTC sin conversión a local
   return dayjs(fecha).format("DD/MM/YYYY hh:mm A");
 };
 
-//TIPOS PARA LOS REGISTROS DE CREDITOS
-// Tipos
-type ClienteCredito = {
+export type EstadoCredito = "ACTIVO" | "CERRADO";
+export type MetodoPago =
+  | "CONTADO"
+  | "TARJETA"
+  | "TRANSFERENCIA_BANCO"
+  | "CREDITO";
+
+export interface CreditoCliente {
   id: number;
   nombre: string;
   apellido: string;
   telefono: string;
   direccion: string;
-};
+}
 
-type VendedorCredito = {
+export interface CreditoVendedor {
   id: number;
   nombre: string;
   correo: string;
-};
+}
 
-type VentaCredito = {
+export interface CreditoVenta {
   id: number;
   monto: number;
   montoConDescuento: number;
-  descuento: number | null;
-  metodoPago: string;
-  timestamp: string;
-  vendedor: VendedorCredito;
-};
+  descuento: number;
+  metodoPago: MetodoPago;
+  timestamp: string; // ISO
+  vendedor: CreditoVendedor;
+}
 
-type Credito = {
+export interface CreditoItem {
   id: number;
   ventaId: number;
   clienteId: number;
   empresaId: number;
+
   montoTotal: number;
-  cuotaInicial: number;
-  totalPagado: number;
-  numeroCuotas: number;
-  estado: string;
-  interes: number;
-  montoConInteres: number;
   montoTotalConInteres: number;
+  totalPagado: number;
   saldoPendiente: number;
-  fechaInicio: string;
-  fechaContrato: string;
-  dpi: string;
-  testigos: Record<string, unknown>;
-  comentario: string;
-  createdAt: string;
-  updatedAt: string;
-  cliente: ClienteCredito;
-  pagos: PagoCredito[];
-  venta: VentaCredito;
-};
+  estado: EstadoCredito;
 
-type PagoCredito = {
-  id: number;
-  creditoId: number;
-  monto: number;
-  timestamp: string;
-  metodoPago: string;
-};
+  fechaInicio: string; // ISO
+  fechaFin: string; // ISO
+  fechaContrato: string; // ISO
 
-type MetodoPago = "CONTADO" | "TARJETA" | "TRANSFERENCIA";
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
 
-interface nuevoPago {
-  creditoId: number | undefined;
-  monto: number | undefined;
-  metodoPago: MetodoPago;
-  ventaId: number | undefined;
+  comentario?: string;
+
+  cliente: CreditoCliente;
+  venta: CreditoVenta;
 }
+
+export type CreditoArray = CreditoItem[];
 
 function Creditos() {
   const userId = useStore((state) => state.userId) ?? 0;
   const empresaId = useStore((state) => state.sucursalId) ?? 0;
-  const [creditos, setCreditos] = useState<Credito[]>([]);
-  const [passwordToDeletePayment, setPasswordToDeletePayment] = useState("");
-  const [openDeletePayment, setOpenDeletePayment] = useState(false);
-  const [pagoId, setPagoId] = useState(0);
-  const [selectedCredit, setSelectedCredit] = useState<Credito | null>(null);
+
+  const [creditos, setCreditos] = useState<CreditoItem[]>([]);
+  const [selectedCredit, setSelectedCredit] = useState<CreditoItem | null>(
+    null
+  );
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [isPaymentOpen, setIsPaymentOpen] = useState(false);
-  const [newPayment, setNewPayment] = useState<nuevoPago>({
-    creditoId: selectedCredit?.id,
-    monto: 0,
-    metodoPago: "CONTADO",
-    ventaId: 0,
-  });
-  const [openDeletCredit, setOpenDeletCredit] = useState(false);
-  const [adminPassword, setAdminPasssword] = useState("");
+
+  const [openDeleteCredit, setOpenDeleteCredit] = useState(false);
+  const [adminPassword, setAdminPassword] = useState("");
   const [creditIdToDelete, setCreditIdToDelete] = useState(0);
 
   const getCreditos = async () => {
@@ -186,61 +155,10 @@ function Creditos() {
   useEffect(() => {
     getCreditos();
   }, []);
-  // Función para abrir el diálogo de detalles
-  const openDetailDialog = (credito: Credito) => {
+
+  const openDetailDialog = (credito: CreditoItem) => {
     setSelectedCredit(credito);
     setIsDetailOpen(true);
-  };
-  // Función para abrir el diálogo de pago
-  const openPaymentDialog = () => {
-    if (selectedCredit) {
-      setNewPayment({
-        creditoId: selectedCredit.id,
-        monto: 0,
-        metodoPago: "CONTADO",
-        ventaId: selectedCredit.ventaId,
-      });
-      setIsDetailOpen(false);
-
-      setIsPaymentOpen(true);
-    }
-  };
-
-  // Función para manejar el registro de pago
-  const handlePaymentSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    // Aquí iría la lógica para registrar el pago en el backend
-    console.log("Nuevo pago:", newPayment);
-    // setIsPaymentOpen(false);
-
-    if (
-      !empresaId ||
-      !newPayment.monto ||
-      newPayment.monto <= 0 ||
-      !newPayment.metodoPago
-    ) {
-      toast.info("Faltan datos para el registro, intente de nuevo");
-      return;
-    }
-
-    try {
-      const response = await axios.post(`${API_URL}/credito/regist-payment`, {
-        empresaId: empresaId,
-        monto: newPayment.monto,
-        metodoPago: newPayment.metodoPago,
-        creditoId: newPayment.creditoId,
-        ventaId: newPayment.ventaId,
-      });
-
-      if (response.status === 200 || response.status === 201) {
-        toast.success("Pago registrado");
-        getCreditos();
-        setIsPaymentOpen(false);
-      }
-    } catch (error) {
-      console.log(error);
-      toast.error("Error al registrar pago");
-    }
   };
 
   const formatearMoneda = (cantidad: number) => {
@@ -264,8 +182,8 @@ function Creditos() {
 
       if (response.status === 200 || response.status === 201) {
         toast.success("Registro de credito eliminado");
-        setOpenDeletCredit(false);
-        setAdminPasssword("");
+        setOpenDeleteCredit(false);
+        setAdminPassword("");
         getCreditos();
       }
     } catch (error) {
@@ -274,79 +192,44 @@ function Creditos() {
     }
   };
 
-  const handleDeletePaymentRegist = async () => {
-    try {
-      if (!userId || !passwordToDeletePayment || !pagoId || !empresaId) {
-        toast.info("Faltand datos, intente de nuevo");
-        return;
-      }
-
-      const response = await axios.post(
-        `${API_URL}/credito/delete-payment-regist`,
-        {
-          userId: userId,
-          password: passwordToDeletePayment,
-          creditoId: pagoId,
-          empresaId: empresaId,
-        }
-      );
-
-      if (response.status === 200 || response.status === 201) {
-        toast.success("Pago eliminado correctamente");
-        setOpenDeletePayment(false);
-        setPasswordToDeletePayment("");
-        setIsDetailOpen(false);
-        setSelectedCredit(null);
-        getCreditos();
-      }
-    } catch (error) {
-      console.log(error);
-      toast.error("Error al eliminar pago");
-    }
-  };
-  //===============>
-  console.log("Los creditos del recurso son: ", creditos);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 25;
   const [startDate, setStartDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
-
   const [filtroVenta, setFiltroVenta] = useState("");
 
-  const ventasFiltradas = creditos?.filter((venta) => {
+  const ventasFiltradas = creditos?.filter((credito) => {
     const filtroNormalizado = filtroVenta.trim().toLocaleLowerCase();
-    const nombreCompleto = `${venta.cliente.nombre || ""} ${
-      venta.cliente.apellido || ""
+    const nombreCompleto = `${credito.cliente.nombre || ""} ${
+      credito.cliente.apellido || ""
     }`
       .trim()
       .toLocaleLowerCase();
 
     const cumpleTexto =
       nombreCompleto.includes(filtroNormalizado) ||
-      venta.cliente.telefono?.toLocaleLowerCase().includes(filtroNormalizado) ||
-      //   venta.cliente.correo?.toLocaleLowerCase().includes(filtroNormalizado) ||
-      venta.cliente.direccion
+      credito.cliente.telefono
         ?.toLocaleLowerCase()
         .includes(filtroNormalizado) ||
-      venta.id.toString().includes(filtroNormalizado);
+      credito.cliente.direccion
+        ?.toLocaleLowerCase()
+        .includes(filtroNormalizado) ||
+      credito.id.toString().includes(filtroNormalizado);
 
     const cumpleFechas =
-      (!startDate || new Date(venta.fechaContrato) >= startDate) &&
-      (!endDate || new Date(venta.fechaContrato) <= endDate);
+      (!startDate || new Date(credito.fechaContrato) >= startDate) &&
+      (!endDate || new Date(credito.fechaContrato) <= endDate);
 
     return cumpleTexto && cumpleFechas;
   });
 
   // PAGINACIÓN
   const totalPages = Math.ceil((ventasFiltradas?.length || 0) / itemsPerPage);
-  // Calcular el índice del último elemento de la página actual
   const indexOfLastItem = currentPage * itemsPerPage;
-  // Calcular el índice del primer elemento de la página actual
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  // Obtener los elementos de la página actual
   const currentItems =
     ventasFiltradas && ventasFiltradas.slice(indexOfFirstItem, indexOfLastItem);
-  // Cambiar de página
+
   const onPageChange = (page: number) => {
     setCurrentPage(page);
   };
@@ -362,6 +245,7 @@ function Creditos() {
                 <h1 className="text-2xl font-bold">Gestión de Créditos</h1>
               </div>
             </CardHeader>
+
             <div className="bg-muted p-4 rounded-lg mb-4 shadow-lg">
               <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
                 <div className="flex-1 relative">
@@ -372,18 +256,18 @@ function Creditos() {
                   <Input
                     id="search-sales"
                     type="search"
-                    placeholder="Buscar ventas..."
+                    placeholder="Buscar créditos..."
                     value={filtroVenta}
                     onChange={(e) => setFiltroVenta(e.target.value)}
                     className="w-full pl-10"
-                    aria-label="Buscar ventas"
+                    aria-label="Buscar créditos"
                   />
                 </div>
 
                 <div className="flex items-center gap-4">
                   <DatePicker
                     locale="es"
-                    selected={startDate || undefined} // Convierte null a undefined
+                    selected={startDate || undefined}
                     onChange={(date) => setStartDate(date)}
                     selectsStart
                     startDate={startDate || undefined}
@@ -395,7 +279,7 @@ function Creditos() {
                   <DatePicker
                     locale="es"
                     isClearable
-                    selected={endDate || undefined} // Convierte null a undefined
+                    selected={endDate || undefined}
                     onChange={(date) => setEndDate(date)}
                     selectsEnd
                     startDate={startDate || undefined}
@@ -414,12 +298,9 @@ function Creditos() {
                   <TableHead>ID</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Monto Total</TableHead>
-                  <TableHead>Saldo Pagado</TableHead>
-
-                  <TableHead>Saldo Pendiente</TableHead>
-                  <TableHead>Fecha de Registro</TableHead>
-
-                  <TableHead>Estado</TableHead>
+                  <TableHead>Monto con descuento</TableHead>
+                  <TableHead>Fecha de Contrato</TableHead>
+                  {/* <TableHead>Estado</TableHead> */}
                   <TableHead>Acciones</TableHead>
                   <TableHead>Eliminar</TableHead>
                 </TableRow>
@@ -431,20 +312,26 @@ function Creditos() {
                       <TableCell>{credito.id}</TableCell>
                       <TableCell>{`${credito.cliente.nombre} ${credito.cliente.apellido}`}</TableCell>
                       <TableCell>
-                        {formatearMoneda(credito.montoTotalConInteres)}
-                      </TableCell>
-                      <TableCell>
-                        {formatearMoneda(credito.totalPagado)}
+                        {formatearMoneda(credito.venta.monto)}
                       </TableCell>
 
                       <TableCell>
-                        {formatearMoneda(credito.saldoPendiente)}
+                        {formatearMoneda(credito.montoTotal)}
                       </TableCell>
                       <TableCell>
                         {formatearFecha(credito.fechaContrato)}
                       </TableCell>
-
-                      <TableCell>{credito.estado}</TableCell>
+                      {/* <TableCell>
+                        <Badge
+                          variant={
+                            credito.estado === "ACTIVO"
+                              ? "default"
+                              : "secondary"
+                          }
+                        >
+                          {credito.estado}
+                        </Badge>
+                      </TableCell> */}
                       <TableCell>
                         <Button
                           variant="outline"
@@ -454,13 +341,12 @@ function Creditos() {
                           <Eye className="h-4 w-4" />
                         </Button>
                       </TableCell>
-
                       <TableCell>
                         <Button
                           variant="outline"
                           size="icon"
                           onClick={() => {
-                            setOpenDeletCredit(true);
+                            setOpenDeleteCredit(true);
                             setCreditIdToDelete(credito.id);
                           }}
                         >
@@ -471,6 +357,7 @@ function Creditos() {
                   ))}
               </TableBody>
             </Table>
+
             <CardFooter className="flex items-center justify-center py-4">
               <div>
                 <Pagination>
@@ -494,7 +381,6 @@ function Creditos() {
                       </PaginationPrevious>
                     </PaginationItem>
 
-                    {/* Sistema de truncado */}
                     {currentPage > 3 && (
                       <>
                         <PaginationItem>
@@ -554,7 +440,6 @@ function Creditos() {
                     </PaginationItem>
                     <PaginationItem>
                       <Button
-                        // variant={"destructive"}
                         onClick={() => onPageChange(totalPages)}
                         disabled={currentPage === totalPages}
                         variant={
@@ -570,66 +455,66 @@ function Creditos() {
             </CardFooter>
           </CardContent>
         </Card>
-
         <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-          <DialogContent
-            className="
-    sm:max-w-[425px] sm:max-h-[75vh] 
-    md:max-w-[600px] md:max-h-[65vh] 
-    lg:max-w-[700px] lg:max-h-[97vh] 
-    max-h-[90vh] w-full
-    overflow-auto
-  "
-          >
+          <DialogContent className="sm:max-w-[900px] max-h-[95vh] overflow-auto">
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold">
                 Detalles del Crédito
               </DialogTitle>
             </DialogHeader>
             {selectedCredit && (
-              <div className="">
-                {/* LA PARTE DE ARRIBA */}
-                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <div className="space-y-6">
+                {/* Cliente y información financiera */}
+                <div className="grid gap-4 sm:grid-cols-2">
                   <Card>
                     <CardContent className="pt-6">
-                      <div className="mb-2">
-                        <h3 className="font-semibold text-sm mb-2 flex items-center">
-                          <User className="mr-2 w-4 h-4" />
-                          Cliente
-                        </h3>
-                        <p className="text-sm">
-                          {selectedCredit.cliente.nombre}{" "}
-                          {selectedCredit.cliente.apellido}
-                        </p>
-                      </div>
+                      <div className="space-y-4">
+                        <div>
+                          <h3 className="font-semibold text-sm mb-2 flex items-center">
+                            <User className="mr-2 w-4 h-4" />
+                            Cliente
+                          </h3>
+                          <p className="text-sm">
+                            {selectedCredit.cliente.nombre}{" "}
+                            {selectedCredit.cliente.apellido}
+                          </p>
+                        </div>
 
-                      <div className="mb-2">
-                        <h3 className="text-sm font-semibold mb-2 flex items-center">
-                          <Phone className="mr-2 w-4 h-4" /> Teléfono
-                        </h3>
-                        <p className="text-sm">
-                          {selectedCredit.cliente.telefono}
-                        </p>
-                      </div>
+                        <div>
+                          <h3 className="text-sm font-semibold mb-2 flex items-center">
+                            <Phone className="mr-2 w-4 h-4" /> Teléfono
+                          </h3>
+                          <p className="text-sm">
+                            {selectedCredit.cliente.telefono}
+                          </p>
+                        </div>
 
-                      <div className="mb-2">
-                        <h3 className="text-sm font-semibold mb-2 flex items-center">
-                          <MapPin className="mr-2 w-4 h-4" /> Dirección
-                        </h3>
-                        <p className="text-sm">
-                          {selectedCredit.cliente.direccion}
-                        </p>
+                        <div>
+                          <h3 className="text-sm font-semibold mb-2 flex items-center">
+                            <MapPin className="mr-2 w-4 h-4" /> Dirección
+                          </h3>
+                          <p className="text-sm">
+                            {selectedCredit.cliente.direccion}
+                          </p>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
+
                   <Card>
                     <CardContent className="pt-6">
-                      <h3 className="text-lg font-semibold mb-2 flex items-center">
+                      <h3 className="text-lg font-semibold mb-4 flex items-center">
                         <Coins className="mr-2" /> Información Financiera
                       </h3>
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         <p className="text-sm flex justify-between">
                           <span>Monto Total:</span>
+                          <Badge variant="secondary">
+                            {formatearMoneda(selectedCredit.montoTotal)}
+                          </Badge>
+                        </p>
+                        <p className="text-sm flex justify-between">
+                          <span>Total con Interés:</span>
                           <Badge variant="secondary">
                             {formatearMoneda(
                               selectedCredit.montoTotalConInteres
@@ -638,7 +523,7 @@ function Creditos() {
                         </p>
                         <p className="text-sm flex justify-between">
                           <span>Saldo Pagado:</span>
-                          <Badge variant="secondary">
+                          <Badge variant="default">
                             {formatearMoneda(selectedCredit.totalPagado)}
                           </Badge>
                         </p>
@@ -648,125 +533,116 @@ function Creditos() {
                             {formatearMoneda(selectedCredit.saldoPendiente)}
                           </Badge>
                         </p>
+                        <p className="text-sm flex justify-between">
+                          <span>Estado:</span>
+                          <Badge
+                            variant={
+                              selectedCredit.estado === "ACTIVO"
+                                ? "default"
+                                : "secondary"
+                            }
+                          >
+                            {selectedCredit.estado}
+                          </Badge>
+                        </p>
                       </div>
                     </CardContent>
                   </Card>
                 </div>
 
-                <Separator className="my-4" />
-                <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
-                  <div className="flex items-center space-x-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-sm">
-                      <span className="font-medium">Fecha de Inicio:</span>{" "}
-                      {new Date(
-                        selectedCredit.fechaInicio
-                      ).toLocaleDateString()}
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <CreditCard className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-sm">
-                      <span className="font-medium">Cuotas:</span>{" "}
-                      {selectedCredit.pagos.length} de{" "}
-                      {selectedCredit.numeroCuotas}
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Percent className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-sm">
-                      <span className="font-medium">Interés:</span>{" "}
-                      {selectedCredit.interes}%
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Coins className="h-4 w-4 text-muted-foreground" />
-                    <p className="text-sm">
-                      <span className="font-medium">Cuota Inicial:</span>{" "}
-                      {formatearMoneda(selectedCredit.cuotaInicial)}
-                    </p>
-                  </div>
+                <Separator />
+
+                {/* Información de fechas y venta */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Card>
+                    <CardContent className="pt-6">
+                      <h3 className="text-lg font-semibold mb-4 flex items-center">
+                        <Calendar className="mr-2" /> Fechas del Crédito
+                      </h3>
+                      <div className="space-y-3">
+                        <div className="flex items-center space-x-2">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <p className="text-sm">
+                            <span className="font-medium">
+                              Fecha de Contrato:
+                            </span>{" "}
+                            {formatearFecha(selectedCredit.fechaContrato)}
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <p className="text-sm">
+                            <span className="font-medium">
+                              Fecha de Inicio:
+                            </span>{" "}
+                            {formatearFecha(selectedCredit.fechaInicio)}
+                          </p>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Calendar className="h-4 w-4 text-muted-foreground" />
+                          <p className="text-sm">
+                            <span className="font-medium">Fecha de Fin:</span>{" "}
+                            {formatearFecha(selectedCredit.fechaFin)}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardContent className="pt-6">
+                      <h3 className="text-lg font-semibold mb-4 flex items-center">
+                        <CreditCard className="mr-2" /> Información de Venta
+                      </h3>
+                      <div className="space-y-3">
+                        <p className="text-sm">
+                          <span className="font-medium">ID Venta:</span>{" "}
+                          {selectedCredit.venta.id}
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-medium">Monto Original:</span>{" "}
+                          {formatearMoneda(selectedCredit.venta.monto)}
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-medium">Descuento:</span>{" "}
+                          {selectedCredit.venta.descuento}%
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-medium">Método de Pago:</span>{" "}
+                          {selectedCredit.venta.metodoPago}
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-medium">Vendedor:</span>{" "}
+                          {selectedCredit.venta.vendedor.nombre}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
 
-                <Separator className="my-4" />
-                <div className="space-y-2 mb-2">
-                  <h3 className="text-lg font-semibold flex items-center">
-                    <MessageSquare className="mr-2 w-4 h-4" /> Comentario
-                  </h3>
-                  <p className="text-sm">
-                    {selectedCredit.comentario || "Sin comentarios"}
-                  </p>
-                </div>
-
-                <div className="w-full overflow-x-auto ">
-                  <Table>
-                    <TableCaption>
-                      Una lista de los pagos recibidos
-                    </TableCaption>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-[100px]">No.</TableHead>
-                        <TableHead>Monto</TableHead>
-                        <TableHead>Metodo</TableHead>
-                        <TableHead className="text-right">Fecha</TableHead>
-
-                        <TableHead>Comprobante</TableHead>
-
-                        <TableHead>Acción</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {selectedCredit.pagos.map((credit) => (
-                        <TableRow>
-                          <TableCell className="font-medium">
-                            {credit.id}
-                          </TableCell>
-                          <TableCell>{formatearMoneda(credit.monto)}</TableCell>
-                          <TableCell>{credit.metodoPago}</TableCell>
-                          <TableCell className="text-[13px]">
-                            {formatearFecha(credit.timestamp)}
-                          </TableCell>
-
-                          <TableCell className="flex justify-center items-center">
-                            <Link to={`/comprobante-pago/${credit.id}`}>
-                              <Button type="button" variant={"ghost"}>
-                                <FileText />
-                              </Button>
-                            </Link>
-                          </TableCell>
-
-                          {/* AJUSTAR LA VISTA PARA CERRAR EL DIALOG AL ELIMINAR EL PAGO O ACTUALIZAR EL DIALOG */}
-                          <TableCell>
-                            <Button
-                              onClick={() => {
-                                setOpenDeletePayment(true);
-                                setPagoId(credit.id);
-                              }}
-                              type="button"
-                              variant={"ghost"}
-                            >
-                              <DeleteIcon />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                <div className="mt-6 flex justify-end">
-                  {/* FUNCION PARA CREAR PAGO */}
-                  <Button onClick={openPaymentDialog}>
-                    <Coins className="mr-2 h-4 w-4" />
-                    Registrar Pago
-                  </Button>
-                </div>
+                {selectedCredit.comentario && (
+                  <>
+                    <Separator />
+                    <Card>
+                      <CardContent className="pt-6">
+                        <h3 className="text-lg font-semibold mb-4 flex items-center">
+                          <AlertTriangle className="mr-2" /> Comentarios
+                        </h3>
+                        <div className="bg-muted p-4 rounded-lg">
+                          <p className="text-sm leading-relaxed">
+                            {selectedCredit.comentario}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </>
+                )}
               </div>
             )}
           </DialogContent>
         </Dialog>
 
-        <Dialog open={openDeletCredit} onOpenChange={setOpenDeletCredit}>
+        <Dialog open={openDeleteCredit} onOpenChange={setOpenDeleteCredit}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle className="text-2xl font-bold text-center flex items-center justify-center gap-2">
@@ -784,7 +660,7 @@ function Creditos() {
               <Input
                 placeholder="Ingrese su contraseña de administrador"
                 value={adminPassword}
-                onChange={(e) => setAdminPasssword(e.target.value)}
+                onChange={(e) => setAdminPassword(e.target.value)}
                 type="password"
                 className="w-full"
               />
@@ -792,7 +668,7 @@ function Creditos() {
             <DialogFooter className="mt-6 flex flex-col sm:flex-row gap-3">
               <Button
                 variant="outline"
-                onClick={() => setOpenDeletCredit(false)}
+                onClick={() => setOpenDeleteCredit(false)}
                 className="w-full sm:w-1/2"
               >
                 Cancelar
@@ -807,134 +683,7 @@ function Creditos() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-
-        <Dialog open={openDeletePayment} onOpenChange={setOpenDeletePayment}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle className="text-lg font-bold text-center">
-                Eliminar registro de pago
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-5">
-              <div className="flex items-center">
-                <h3 className="text-md font-semibold text-center">
-                  ¿Estás seguro de querer eliminar el pago registrado?
-                </h3>
-              </div>
-              <Input
-                value={passwordToDeletePayment}
-                onChange={(e) => setPasswordToDeletePayment(e.target.value)}
-                placeholder="Ingrese su contraseña de administrador"
-                type="password"
-                className="w-full"
-              />
-            </div>
-            <DialogFooter className="mt-6 sm:space-x-4">
-              <Button
-                variant="outline"
-                onClick={() => setOpenDeletePayment(false)}
-                className="w-full my-1"
-              >
-                Cancelar
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleDeletePaymentRegist}
-                className="w-full my-1"
-              >
-                Eliminar pago
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={isPaymentOpen} onOpenChange={setIsPaymentOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-bold flex items-center">
-                <Coins className="mr-2" />
-                Registrar Pago
-              </DialogTitle>
-            </DialogHeader>
-            <form className="space-y-6">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="monto" className="text-sm font-medium">
-                        Monto
-                      </Label>
-                      <div className="relative">
-                        <Coins className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500" />
-                        <Input
-                          id="monto"
-                          type="number"
-                          value={newPayment.monto}
-                          onChange={(e) =>
-                            setNewPayment({
-                              ...newPayment,
-                              monto: parseFloat(e.target.value),
-                            })
-                          }
-                          className="pl-10"
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label
-                        htmlFor="metodoPago"
-                        className="text-sm font-medium"
-                      >
-                        Método de Pago
-                      </Label>
-                      <Select
-                        value={newPayment.metodoPago}
-                        onValueChange={(value: MetodoPago) =>
-                          setNewPayment({ ...newPayment, metodoPago: value })
-                        }
-                      >
-                        <SelectTrigger id="metodoPago" className="w-full">
-                          <SelectValue placeholder="Seleccione el método de pago" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="CONTADO">
-                            <span className="flex items-center">
-                              <Coins className="mr-2 h-4 w-4" />
-                              CONTADO
-                            </span>
-                          </SelectItem>
-                          <SelectItem value="TARJETA">
-                            <span className="flex items-center">
-                              <CreditCard className="mr-2 h-4 w-4" />
-                              TARJETA
-                            </span>
-                          </SelectItem>
-                          <SelectItem value="TRANSFERENCIA_BANCO">
-                            <span className="flex items-center">
-                              <Banknote className="mr-2 h-4 w-4" />
-                              TRANSFERENCIA
-                            </span>
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              <Button
-                type="button"
-                onClick={handlePaymentSubmit}
-                className="w-full"
-              >
-                Registrar Pago
-              </Button>
-            </form>
-          </DialogContent>
-        </Dialog>
       </div>
-
-      {/* PAGINACION */}
     </div>
   );
 }

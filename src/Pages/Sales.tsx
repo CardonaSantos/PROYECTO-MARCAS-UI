@@ -513,7 +513,7 @@ function Sales() {
                                               </h4>
                                               <p className="text-sm">
                                                 {selectedVenta.monto
-                                                  ? `Q${selectedVenta.monto}`
+                                                  ? `Q${selectedVenta.montoConDescuento}`
                                                   : "No se aplicó"}
                                               </p>
                                             </>
